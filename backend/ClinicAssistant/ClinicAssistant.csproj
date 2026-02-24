@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ClinicalAssistant.Domain\ClinicAssistant.Domain.csproj" />
+    <ProjectReference Include="..\ClinicalAssistant.Repository\ClinicAssistant.Repository.csproj" />
+    <ProjectReference Include="..\ClinicalAssistant.Service\ClinicAssistant.Service.csproj" />
   </ItemGroup>
 
 </Project>

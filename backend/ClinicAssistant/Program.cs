@@ -1,4 +1,9 @@
+using ClinicAssistant.AudioTranscribers;
+using ClinicAssistant.Domain.Interfaces;
 using ClinicAssistant.Middleware;
+using ClinicAssistant.Repository;
+using ClinicAssistant.Service;
+using ClinicAssistant.WebSockets;
 
 namespace ClinicAssistant;
 
@@ -30,6 +35,18 @@ public class Program
         builder.Logging.ClearProviders();
         builder.Logging.AddLog4Net("log4net.config");
 
+        builder.Services.AddSingleton<ITranscriptionRepository, InMemoryTranscriptionRepository>();
+        builder.Services.AddSingleton<ITranscriptionService, TranscriptionService>();
+        builder.Services.AddSingleton<IAudioTranscriber, StubAudioTranscriber>();
+        builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
+
+        var audioRoot = Path.Combine(AppContext.BaseDirectory, "App_Data", "audio");
+
+        if (Directory.Exists(audioRoot))
+        {
+            Directory.Delete(audioRoot, recursive: true);
+        }
+
         var app = builder.Build();
 
         app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -48,6 +65,7 @@ public class Program
         app.UseCors(AppAllowSpecificOrigins);
 
         app.MapControllers();
+        app.MapHub<TranscriptionHub>("/hubs/transcription");
 
         app.Run();
     }
