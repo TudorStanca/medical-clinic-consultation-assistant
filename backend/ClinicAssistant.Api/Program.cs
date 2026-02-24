@@ -1,34 +1,54 @@
+using ClinicAssistant.Middleware;
 
-namespace ClinicAssistant.Api
+namespace ClinicAssistant;
+
+public class Program
 {
-    public class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
+        var builder = WebApplication.CreateBuilder(args);
+
+        // Add services to the container.
+        builder.Services.AddControllers();
+
+        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        builder.Services.AddEndpointsApiExplorer();
+        builder.Services.AddSwaggerGen();
+
+        builder.Services.AddSignalR();
+
+        var AppAllowSpecificOrigins = "_appAllowSpecificOrigins";
+
+        builder.Services.AddCors(options =>
         {
-            var builder = WebApplication.CreateBuilder(args);
-
-            // Add services to the container.
-
-            builder.Services.AddControllers();
-            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-            builder.Services.AddOpenApi();
-
-            var app = builder.Build();
-
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            options.AddPolicy(name: AppAllowSpecificOrigins, policy =>
             {
-                app.MapOpenApi();
-            }
+                policy.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod();
+            });
+        });
 
-            app.UseHttpsRedirection();
+        builder.Logging.ClearProviders();
+        builder.Logging.AddLog4Net("log4net.config");
 
-            app.UseAuthorization();
+        var app = builder.Build();
 
+        app.UseMiddleware<GlobalExceptionMiddleware>();
 
-            app.MapControllers();
-
-            app.Run();
+        // Configure the HTTP request pipeline.
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI();
         }
+
+        app.UseHttpsRedirection();
+
+        app.UseAuthorization();
+
+        app.UseCors(AppAllowSpecificOrigins);
+
+        app.MapControllers();
+
+        app.Run();
     }
 }
