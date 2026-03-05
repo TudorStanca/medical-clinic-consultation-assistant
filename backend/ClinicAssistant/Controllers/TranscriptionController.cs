@@ -14,8 +14,10 @@ public class TranscriptionController(ITranscriptionService transcriptionService)
     private readonly ITranscriptionService _transcriptionService = transcriptionService;
 
     [HttpPost]
+    [ProducesResponseType(201)]
     public async Task<ActionResult> CreateSession()
     {
+        _logger.Info("Received request to create transcription session.");
         var session = await _transcriptionService.CreateSession();
 
         return CreatedAtAction(nameof(GetSession), new { sessionId = session.Id }, session);
@@ -23,8 +25,13 @@ public class TranscriptionController(ITranscriptionService transcriptionService)
 
     [HttpPost("{sessionId:guid}/chunks")]
     [RequestSizeLimit(200_000_000)]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
     public async Task<IActionResult> UploadChunk(Guid sessionId, IFormFile chunk, CancellationToken ct)
     {
+        _logger.Info($"Received chunk upload for sessionId={sessionId}");
+
         if (chunk == null || chunk.Length == 0)
             return BadRequest("Chunk file is required.");
 
@@ -46,9 +53,22 @@ public class TranscriptionController(ITranscriptionService transcriptionService)
         return Ok(new { ok = true });
     }
 
+    [HttpPost("{sessionId:guid}/stop")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> StopSession(Guid sessionId, CancellationToken ct)
+    {
+        _logger.Info($"Received request to stop sessionId={sessionId}");
+        await _transcriptionService.StopSessionAsync(sessionId, ct);
+        return Ok(new { ok = true });
+    }
+
     [HttpGet("{sessionId:guid}")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
     public async Task<ActionResult> GetSession(Guid sessionId)
     {
+        _logger.Info($"Received request to get sessionId={sessionId}");
         var s = await _transcriptionService.GetSession(sessionId);
 
         return Ok(new
@@ -61,8 +81,11 @@ public class TranscriptionController(ITranscriptionService transcriptionService)
     }
 
     [HttpGet("{sessionId:guid}/transcript")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(404)]
     public async Task<ActionResult> GetTranscript(Guid sessionId)
     {
+        _logger.Info($"Received request for transcript of sessionId={sessionId}");
         var s = await _transcriptionService.GetSession(sessionId);
         return Ok(s.Segments.Select(x => new
         {

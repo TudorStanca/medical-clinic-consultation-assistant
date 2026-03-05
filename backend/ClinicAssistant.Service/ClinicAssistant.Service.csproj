@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-	<ProjectReference Include="..\ClinicalAssistant.Domain\ClinicAssistant.Domain.csproj" />
+    <ProjectReference Include="..\ClinicAssistant.Domain\ClinicAssistant.Domain.csproj" />
   </ItemGroup>
 
 </Project>

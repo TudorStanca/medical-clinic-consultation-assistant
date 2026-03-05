@@ -374,3 +374,17 @@ indexLayout.xml
 # Environment vars
 .env
 .config
+
+# VS Code workspace settings (allow .vscode/settings.json)
+!.vscode/
+!.vscode/settings.json
+
+# Backend temp audio storage
+App_Data/
+
+# Whisper model files (large binaries, download separately)
+*.bin
+
+# Local app secrets (connection strings, API keys)
+appsettings.Local.json
+appsettings.*.local.json

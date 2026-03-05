@@ -8,14 +8,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClinicAssistant", "ClinicAs
 		{9DF4FC43-F778-4143-8208-5BAA98200E05} = {9DF4FC43-F778-4143-8208-5BAA98200E05}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClinicAssistant.Domain", "..\ClinicalAssistant.Domain\ClinicAssistant.Domain.csproj", "{9DF4FC43-F778-4143-8208-5BAA98200E05}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClinicAssistant.Domain", "..\ClinicAssistant.Domain\ClinicAssistant.Domain.csproj", "{9DF4FC43-F778-4143-8208-5BAA98200E05}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClinicAssistant.Repository", "..\ClinicalAssistant.Repository\ClinicAssistant.Repository.csproj", "{0712C6DC-8B6F-4B93-A21B-FAB946E222CE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClinicAssistant.Repository", "..\ClinicAssistant.Repository\ClinicAssistant.Repository.csproj", "{0712C6DC-8B6F-4B93-A21B-FAB946E222CE}"
 	ProjectSection(ProjectDependencies) = postProject
 		{9DF4FC43-F778-4143-8208-5BAA98200E05} = {9DF4FC43-F778-4143-8208-5BAA98200E05}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClinicAssistant.Service", "..\ClinicalAssistant.Service\ClinicAssistant.Service.csproj", "{0EC60E58-A9E4-4A18-A239-165FD6792E49}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClinicAssistant.Service", "..\ClinicAssistant.Service\ClinicAssistant.Service.csproj", "{0EC60E58-A9E4-4A18-A239-165FD6792E49}"
 	ProjectSection(ProjectDependencies) = postProject
 		{9DF4FC43-F778-4143-8208-5BAA98200E05} = {9DF4FC43-F778-4143-8208-5BAA98200E05}
 	EndProjectSection
