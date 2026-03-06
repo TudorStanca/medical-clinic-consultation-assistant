@@ -1,6 +1,8 @@
-﻿using ClinicAssistant.Domain.Entities;
+﻿using ClinicAssistant.Controller.Interfaces;
+using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Domain.Enums;
 using ClinicAssistant.Domain.Exceptions;
-using ClinicAssistant.Domain.Interfaces;
+using ClinicAssistant.Service.Interfaces;
 using log4net;
 
 namespace ClinicAssistant.Service;
@@ -37,6 +39,11 @@ public class TranscriptionService(ITranscriptionRepository transcriptionRepo,
     public async Task ProcessChunkAsync(Guid sessionId, string audioPath, CancellationToken ct)
     {
         var session = await GetSession(sessionId);
+
+        if (session.Status is SessionStatus.Processing or SessionStatus.Done or SessionStatus.Failed)
+        {
+            throw new SessionClosedException($"Session {sessionId} is closed and cannot accept new chunks.");
+        }
 
         try
         {

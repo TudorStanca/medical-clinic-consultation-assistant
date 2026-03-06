@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ClinicAssistant.Domain\ClinicAssistant.Domain.csproj" />
+    <ProjectReference Include="..\ClinicAssistant.Controller\ClinicAssistant.Controller.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,5 @@
 ﻿using ClinicAssistant.Domain.Entities;
-using ClinicAssistant.Domain.Interfaces;
+using ClinicAssistant.Service.Interfaces;
 using log4net;
 using Microsoft.AspNetCore.SignalR;
 

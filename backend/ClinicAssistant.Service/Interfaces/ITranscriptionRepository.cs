@@ -1,6 +1,6 @@
-﻿using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Domain.Entities;
 
-namespace ClinicAssistant.Domain.Interfaces;
+namespace ClinicAssistant.Service.Interfaces;
 
 public interface ITranscriptionRepository
 {

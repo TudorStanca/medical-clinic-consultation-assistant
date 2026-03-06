@@ -1,8 +1,9 @@
 using ClinicAssistant.AudioTranscribers;
-using ClinicAssistant.Domain.Interfaces;
-using ClinicAssistant.Middleware;
+using ClinicAssistant.Controller.Interfaces;
+using ClinicAssistant.Controller.Middleware;
 using ClinicAssistant.Repository;
 using ClinicAssistant.Service;
+using ClinicAssistant.Service.Interfaces;
 using ClinicAssistant.WebSockets;
 
 namespace ClinicAssistant;
@@ -14,7 +15,8 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddApplicationPart(typeof(ClinicAssistant.Controller.Controllers.TranscriptionController).Assembly);
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
@@ -36,7 +38,7 @@ public class Program
         builder.Logging.AddLog4Net("log4net.config");
 
         builder.Services.AddSingleton<ITranscriptionRepository, InMemoryTranscriptionRepository>();
-        builder.Services.AddSingleton<ITranscriptionService, TranscriptionService>();
+        builder.Services.AddScoped<ITranscriptionService, TranscriptionService>();
         builder.Services.AddSingleton<IAudioTranscriber, StubAudioTranscriber>();
         builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
 
@@ -58,11 +60,9 @@ public class Program
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
+        app.UseCors(AppAllowSpecificOrigins);
 
         app.UseAuthorization();
-
-        app.UseCors(AppAllowSpecificOrigins);
 
         app.MapControllers();
         app.MapHub<TranscriptionHub>("/hubs/transcription");

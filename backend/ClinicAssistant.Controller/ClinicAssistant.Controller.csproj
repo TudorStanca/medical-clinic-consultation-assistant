@@ -1,18 +1,16 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="log4net" Version="3.3.0" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\ClinicAssistant.Domain\ClinicAssistant.Domain.csproj" />
-    <ProjectReference Include="..\ClinicAssistant.Service\ClinicAssistant.Service.csproj" />
   </ItemGroup>
-
 </Project>

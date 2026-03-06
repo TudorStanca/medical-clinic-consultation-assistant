@@ -1,7 +1,9 @@
-﻿using ClinicAssistant.Domain.Exceptions;
+using ClinicAssistant.Domain.Exceptions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using System.Net;
 
-namespace ClinicAssistant.Middleware;
+namespace ClinicAssistant.Controller.Middleware;
 
 public class GlobalExceptionMiddleware
 {
