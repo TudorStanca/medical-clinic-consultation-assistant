@@ -53,7 +53,7 @@ public class TranscriptionService(ITranscriptionRepository transcriptionRepo,
 
             _logger.Info($"Processing chunk for session {sessionId}. Path={audioPath}");
 
-            var segments = await _transcriber.TranscribeChunkAsync(audioPath, ct);
+            var segments = await _transcriber.TranscribeChunkAsync(sessionId, audioPath, ct);
 
             session.AddSegments(segments);
             await _transcriptionRepo.Save(session);
@@ -90,6 +90,8 @@ public class TranscriptionService(ITranscriptionRepository transcriptionRepo,
 
             session.MarkDone();
             await _transcriptionRepo.Save(session);
+
+            await _transcriber.CleanupSessionAsync(sessionId, ct);
 
             await _publisher.PublishStatusAsync(sessionId, session.Status.ToString(), ct);
         }
