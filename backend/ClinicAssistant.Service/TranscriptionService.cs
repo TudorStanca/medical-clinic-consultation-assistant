@@ -45,34 +45,11 @@ public class TranscriptionService(ITranscriptionRepository transcriptionRepo,
             throw new SessionClosedException($"Session {sessionId} is closed and cannot accept new chunks.");
         }
 
-        try
-        {
-            session.MarkRecording();
-            session.AddChunkPath(audioPath);
-            await _transcriptionRepo.Save(session);
+        session.MarkRecording();
+        session.AddChunkPath(audioPath);
+        await _transcriptionRepo.Save(session);
 
-            _logger.Info($"Processing chunk for session {sessionId}. Path={audioPath}");
-
-            var segments = await _transcriber.TranscribeChunkAsync(sessionId, audioPath, ct);
-
-            session.AddSegments(segments);
-            await _transcriptionRepo.Save(session);
-
-            foreach (var seg in segments)
-            {
-                await _publisher.PublishSegmentAsync(sessionId, seg, ct);
-            }
-        }
-        catch (CustomException ex)
-        {
-            _logger.Error($"Failed to process chunk for session {sessionId}.", ex);
-
-            session.MarkFailed();
-            await _transcriptionRepo.Save(session);
-            await _publisher.PublishStatusAsync(sessionId, session.Status.ToString(), ct);
-
-            throw;
-        }
+        _logger.Info($"Chunk saved for session {sessionId}. Path={audioPath}");
     }
 
     public async Task StopSessionAsync(Guid sessionId, CancellationToken ct)
@@ -81,21 +58,29 @@ public class TranscriptionService(ITranscriptionRepository transcriptionRepo,
 
         try
         {
-            _logger.Info($"Stopping session {sessionId}");
+            _logger.Info($"Stopping session {sessionId}, transcribing {session.AudioChunkPaths.Count} chunk(s).");
 
             session.MarkProcessing();
             await _transcriptionRepo.Save(session);
+
+            var segments = await _transcriber.FinalizeSessionAsync(session.AudioChunkPaths, ct);
+
+            session.AddSegments(segments);
+            await _transcriptionRepo.Save(session);
+
+            foreach (var seg in segments)
+            {
+                await _publisher.PublishSegmentAsync(sessionId, seg, ct);
+            }
 
             //TODO: send to llm
 
             session.MarkDone();
             await _transcriptionRepo.Save(session);
 
-            await _transcriber.CleanupSessionAsync(sessionId, ct);
-
             await _publisher.PublishStatusAsync(sessionId, session.Status.ToString(), ct);
         }
-        catch (CustomException ex)
+        catch (Exception ex)
         {
             _logger.Error($"Failed to stop session {sessionId}.", ex);
 

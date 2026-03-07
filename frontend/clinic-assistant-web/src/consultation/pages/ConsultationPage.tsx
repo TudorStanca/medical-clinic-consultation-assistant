@@ -84,13 +84,13 @@ const ConsultationPage = () => {
     mediaRecorderRef.current = null;
 
     setRecording(false);
+    setStatus("Transcribing");
 
     if (sessionId) {
       await stopSession(sessionId);
+      // stopSession resolves only after Whisper finishes and segments are published via SignalR
       await disconnect(sessionId);
     }
-
-    setStatus("Done");
   };
 
   return (
@@ -119,7 +119,7 @@ const ConsultationPage = () => {
           <Chip
             label={`Status: ${status}`}
             variant="outlined"
-            color={recording ? "error" : status === "Done" ? "success" : "default"}
+            color={recording ? "error" : status === "Done" ? "success" : status === "Transcribing" ? "warning" : "default"}
           />
           {recording && (
             <Box

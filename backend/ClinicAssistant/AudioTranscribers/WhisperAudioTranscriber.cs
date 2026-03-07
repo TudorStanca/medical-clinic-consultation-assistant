@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Domain.Entities;
@@ -15,12 +14,6 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
 {
     private static readonly ILog Log = LogManager.GetLogger(typeof(WhisperAudioTranscriber));
 
-    // WebmHeader: bytes from chunk 1 up to (not including) the first Cluster element.
-    // Prepending this to any subsequent chunk makes it a valid standalone WebM.
-    private record SessionState(byte[] WebmHeader, long AccumulatedMs);
-
-    private readonly ConcurrentDictionary<Guid, SessionState> _sessions = new();
-    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _sessionLocks = new();
     private readonly WhisperSettings _settings;
     private readonly WhisperFactory _factory;
 
@@ -52,7 +45,6 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
             _factory = WhisperFactory.FromPath(modelPath);
             Log.Info("WhisperFactory initialized with CPU.");
         }
-        Log.Info($"WhisperFactory initialized from {modelPath}");
     }
 
     private static async Task DownloadModelAsync(string modelPath)
@@ -62,99 +54,41 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
         await modelStream.CopyToAsync(fileStream);
     }
 
-    public async Task<IReadOnlyList<TranscriptSegment>> TranscribeChunkAsync(
-        Guid sessionId, string audioPath, CancellationToken ct)
+    public async Task<IReadOnlyList<TranscriptSegment>> FinalizeSessionAsync(
+        IReadOnlyList<string> audioPaths, CancellationToken ct)
     {
-        var chunkBytes = await File.ReadAllBytesAsync(audioPath, ct);
-
-        var semaphore = _sessionLocks.GetOrAdd(sessionId, _ => new SemaphoreSlim(1, 1));
-        await semaphore.WaitAsync(ct);
-        try
+        if (audioPaths.Count == 0)
         {
-            byte[] webmToProcess;
-            long offsetMs;
-            byte[] webmHeader;
-            long accumulatedMs;
+            Log.Warn("FinalizeSession called with no audio chunks — returning empty transcript.");
 
-            if (!_sessions.TryGetValue(sessionId, out var state))
-            {
-                // First chunk: extract the EBML+Segment header (everything before Cluster #1)
-                webmHeader = ExtractWebmHeader(chunkBytes);
-                webmToProcess = chunkBytes;
-                offsetMs = 0;
-                accumulatedMs = 0;
-                Log.Info($"Session {sessionId}: first chunk, extracted {webmHeader.Length} bytes of WebM header.");
-            }
-            else
-            {
-                webmHeader = state.WebmHeader;
-                // Prepend header so FFmpeg sees a valid WebM containing just this cluster
-                webmToProcess = CombineBytes(webmHeader, chunkBytes);
-                offsetMs = state.AccumulatedMs;
-                accumulatedMs = state.AccumulatedMs;
-            }
-
-            Log.Info($"Session {sessionId}: FFmpeg converting chunk ({chunkBytes.Length / 1024} KB, offset {offsetMs} ms)...");
-            var wavBytes = await ConvertWebMToWavAsync(webmToProcess, ct);
-            Log.Info($"Session {sessionId}: FFmpeg done, {wavBytes.Length / 1024} KB WAV. Starting Whisper...");
-
-            // Calculate this chunk's duration from WAV size: PCM at 16 kHz, 16-bit, mono = 2 bytes/sample
-            var pcmBytes = Math.Max(0, wavBytes.Length - 44);
-            var chunkDurationMs = (long)(pcmBytes / 2.0 / 16000.0 * 1000.0);
-
-            var rawSegments = await TranscribeWavAsync(wavBytes, ct);
-            Log.Info($"Session {sessionId}: Whisper done, {rawSegments.Count} segments, chunk duration {chunkDurationMs} ms.");
-
-            // Apply timestamp offset so segments have absolute positions in the session
-            var segments = rawSegments
-                .Select(s => new TranscriptSegment
-                {
-                    StartMs = s.StartMs + offsetMs,
-                    EndMs = s.EndMs + offsetMs,
-                    Text = s.Text
-                })
-                .ToList();
-
-            _sessions[sessionId] = new SessionState(webmHeader, accumulatedMs + chunkDurationMs);
-
-            return segments;
-        }
-        finally
-        {
-            semaphore.Release();
-        }
-    }
-
-    public Task CleanupSessionAsync(Guid sessionId, CancellationToken ct)
-    {
-        _sessions.TryRemove(sessionId, out _);
-        if (_sessionLocks.TryRemove(sessionId, out var semaphore))
-            semaphore.Dispose();
-        Log.Info($"Session {sessionId}: buffer freed.");
-        return Task.CompletedTask;
-    }
-
-    // Returns the bytes of chunk1 up to (not including) the first Cluster element (ID: 1F 43 B6 75).
-    // Prepending these bytes to any subsequent cluster makes a valid standalone WebM for FFmpeg.
-    private static byte[] ExtractWebmHeader(byte[] chunk1Bytes)
-    {
-        ReadOnlySpan<byte> clusterMarker = [0x1F, 0x43, 0xB6, 0x75];
-        var span = chunk1Bytes.AsSpan();
-        var idx = span.IndexOf(clusterMarker);
-        if (idx < 0)
-        {
-            Log.Warn("Could not locate Cluster element in first WebM chunk — independent chunk decoding will not work.");
             return [];
         }
-        return chunk1Bytes[0..idx];
+
+        Log.Info($"Finalizing session: concatenating {audioPaths.Count} chunk(s) for transcription.");
+
+        var sortedPaths = audioPaths.OrderBy(p => p).ToList();
+        var totalBytes = await ConcatenateFilesAsync(sortedPaths, ct);
+
+        Log.Info($"FFmpeg converting {totalBytes.Length / 1024} KB of WebM audio...");
+        var wavBytes = await ConvertWebMToWavAsync(totalBytes, ct);
+
+        Log.Info($"FFmpeg done, {wavBytes.Length / 1024} KB WAV. Starting Whisper...");
+        var segments = await TranscribeWavAsync(wavBytes, ct);
+
+        Log.Info($"Whisper done, {segments.Count} segment(s).");
+
+        return segments;
     }
 
-    private static byte[] CombineBytes(byte[] header, byte[] cluster)
+    private static async Task<byte[]> ConcatenateFilesAsync(IReadOnlyList<string> paths, CancellationToken ct)
     {
-        var result = new byte[header.Length + cluster.Length];
-        header.CopyTo(result, 0);
-        cluster.CopyTo(result, header.Length);
-        return result;
+        using var ms = new MemoryStream();
+        foreach (var path in paths)
+        {
+            var bytes = await File.ReadAllBytesAsync(path, ct);
+            await ms.WriteAsync(bytes, ct);
+        }
+        return ms.ToArray();
     }
 
     private async Task<byte[]> ConvertWebMToWavAsync(byte[] webmBytes, CancellationToken ct)
