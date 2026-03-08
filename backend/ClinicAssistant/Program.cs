@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ClinicAssistant.AudioTranscribers;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Controller.Interfaces;
@@ -34,7 +35,10 @@ public class Program
         {
             options.AddPolicy(name: AppAllowSpecificOrigins, policy =>
             {
-                policy.AllowAnyHeader().AllowAnyOrigin().AllowAnyMethod();
+                policy.AllowAnyHeader()
+                      .WithOrigins("http://localhost:5056", "http://localhost:5173")
+                      .AllowAnyMethod()
+                      .AllowCredentials();
             });
         });
 

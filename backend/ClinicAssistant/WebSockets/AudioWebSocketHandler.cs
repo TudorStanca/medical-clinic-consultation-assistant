@@ -26,37 +26,44 @@ public static class AudioWebSocketHandler
         using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
         Log.Info($"WebSocket accepted for session {sessionId}.");
 
-        var receiveBuffer = new byte[32 * 1024];
-        using var pcmBuffer = new MemoryStream();
-
+        var tempPath = Path.GetTempFileName();
         try
         {
-            WebSocketReceiveResult result;
-            do
+            var receiveBuffer = new byte[32 * 1024];
+
+            await using (var fileStream = new FileStream(tempPath, FileMode.Open, FileAccess.Write, FileShare.None, 32 * 1024, useAsync: true))
             {
-                result = await webSocket.ReceiveAsync(receiveBuffer, context.RequestAborted);
-                if (result.MessageType == WebSocketMessageType.Binary && result.Count > 0)
+                try
                 {
-                    await pcmBuffer.WriteAsync(receiveBuffer.AsMemory(0, result.Count), context.RequestAborted);
+                    WebSocketReceiveResult result;
+                    do
+                    {
+                        result = await webSocket.ReceiveAsync(receiveBuffer, context.RequestAborted);
+                        if (result.MessageType == WebSocketMessageType.Binary && result.Count > 0)
+                            await fileStream.WriteAsync(receiveBuffer.AsMemory(0, result.Count), context.RequestAborted);
+                    } while (result.MessageType != WebSocketMessageType.Close);
+
+                    Log.Info($"WebSocket closed for session {sessionId}. Received {fileStream.Length / 1024} KB of PCM.");
                 }
-            } while (result.MessageType != WebSocketMessageType.Close);
+                catch (OperationCanceledException)
+                {
+                    Log.Warn($"WebSocket receive cancelled for session {sessionId}.");
+                }
+                catch (WebSocketException ex)
+                {
+                    Log.Warn($"WebSocket error for session {sessionId}: {ex.Message}");
+                }
+            }
 
-            Log.Info($"WebSocket closed for session {sessionId}. Received {pcmBuffer.Length / 1024} KB of PCM.");
+            var pcmBytes = await File.ReadAllBytesAsync(tempPath, CancellationToken.None);
+
+            using var stopScope = scopeFactory.CreateScope();
+            var stopService = stopScope.ServiceProvider.GetRequiredService<ITranscriptionService>();
+            await stopService.StopSessionAsync(sessionId, pcmBytes, CancellationToken.None);
         }
-        catch (OperationCanceledException)
+        finally
         {
-            Log.Warn($"WebSocket receive cancelled for session {sessionId}.");
+            File.Delete(tempPath);
         }
-        catch (WebSocketException ex)
-        {
-            Log.Warn($"WebSocket error for session {sessionId}: {ex.Message}");
-        }
-
-        var pcmBytes = pcmBuffer.ToArray();
-
-        using var stopScope = scopeFactory.CreateScope();
-        var stopService = stopScope.ServiceProvider.GetRequiredService<ITranscriptionService>();
-
-        await stopService.StopSessionAsync(sessionId, pcmBytes, CancellationToken.None);
     }
 }

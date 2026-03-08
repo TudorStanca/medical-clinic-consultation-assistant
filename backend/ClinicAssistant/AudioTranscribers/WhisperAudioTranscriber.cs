@@ -15,6 +15,7 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
 
     private readonly WhisperSettings _settings;
     private readonly WhisperFactory _factory;
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public WhisperAudioTranscriber(IOptions<WhisperSettings> options)
     {
@@ -61,14 +62,23 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
             return [];
         }
 
-        Log.Info($"Wrapping {pcmData.Length / 1024} KB of PCM into WAV and starting Whisper...");
+        Log.Info($"Waiting for Whisper semaphore ({pcmData.Length / 1024} KB PCM)...");
+        await _semaphore.WaitAsync(ct);
+        try
+        {
+            Log.Info($"Wrapping {pcmData.Length / 1024} KB of PCM into WAV and starting Whisper...");
 
-        var wavBytes = WrapPcmInWav(pcmData);
-        var segments = await TranscribeWavAsync(wavBytes, ct);
+            var wavBytes = WrapPcmInWav(pcmData);
+            var segments = await TranscribeWavAsync(wavBytes, ct);
 
-        Log.Info($"Whisper done, {segments.Count} segment(s).");
+            Log.Info($"Whisper done, {segments.Count} segment(s).");
 
-        return segments;
+            return segments;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
     private static byte[] WrapPcmInWav(byte[] pcmData, int sampleRate = 16000, short channels = 1, short bitsPerSample = 16)
@@ -112,6 +122,7 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _semaphore.Dispose();
         _factory.Dispose();
         await ValueTask.CompletedTask;
     }
