@@ -17,6 +17,10 @@ export default defineConfig({
         target: "http://localhost:5056",
         ws: true,
       },
+      "/ws": {
+        target: "http://localhost:5056",
+        ws: true,
+      },
     },
   },
 });

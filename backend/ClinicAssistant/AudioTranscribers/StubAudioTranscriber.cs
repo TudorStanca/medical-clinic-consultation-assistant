@@ -1,4 +1,4 @@
-﻿using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Service.Interfaces;
 using log4net;
 
@@ -8,19 +8,20 @@ public class StubAudioTranscriber : IAudioTranscriber
 {
     private static readonly ILog Log = LogManager.GetLogger(typeof(StubAudioTranscriber));
 
-    public Task<IReadOnlyList<TranscriptSegment>> FinalizeSessionAsync(IReadOnlyList<string> audioPaths, CancellationToken ct)
+    public Task<IReadOnlyList<TranscriptSegment>> TranscribePcmAsync(byte[] pcmData, CancellationToken ct)
     {
-        Log.Info($"[STUB] FinalizeSession: {audioPaths.Count} chunk(s).");
+        Log.Info($"[STUB] TranscribePcm: {pcmData.Length / 1024} KB of PCM.");
 
-        var segments = audioPaths
-            .Select((path, i) => new TranscriptSegment
+        IReadOnlyList<TranscriptSegment> segments =
+        [
+            new TranscriptSegment
             {
-                StartMs = i * 5000L,
-                EndMs = (i + 1) * 5000L,
-                Text = $"[stub] chunk {i + 1}: {Path.GetFileName(path)}"
-            })
-            .ToList();
+                StartMs = 0,
+                EndMs = 5000,
+                Text = "[stub] transcribed PCM audio"
+            }
+        ];
 
-        return Task.FromResult<IReadOnlyList<TranscriptSegment>>(segments);
+        return Task.FromResult(segments);
     }
 }

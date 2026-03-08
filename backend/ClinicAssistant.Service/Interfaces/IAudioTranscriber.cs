@@ -4,5 +4,5 @@ namespace ClinicAssistant.Service.Interfaces;
 
 public interface IAudioTranscriber
 {
-    Task<IReadOnlyList<TranscriptSegment>> FinalizeSessionAsync(IReadOnlyList<string> audioPaths, CancellationToken ct);
+    Task<IReadOnlyList<TranscriptSegment>> TranscribePcmAsync(byte[] pcmData, CancellationToken ct);
 }

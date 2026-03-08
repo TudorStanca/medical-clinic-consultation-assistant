@@ -1,6 +1,5 @@
-﻿using ClinicAssistant.Controller.Interfaces;
+using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.Entities;
-using ClinicAssistant.Domain.Enums;
 using ClinicAssistant.Domain.Exceptions;
 using ClinicAssistant.Service.Interfaces;
 using log4net;
@@ -36,34 +35,18 @@ public class TranscriptionService(ITranscriptionRepository transcriptionRepo,
         return session;
     }
 
-    public async Task ProcessChunkAsync(Guid sessionId, string audioPath, CancellationToken ct)
-    {
-        var session = await GetSession(sessionId);
-
-        if (session.Status is SessionStatus.Processing or SessionStatus.Done or SessionStatus.Failed)
-        {
-            throw new SessionClosedException($"Session {sessionId} is closed and cannot accept new chunks.");
-        }
-
-        session.MarkRecording();
-        session.AddChunkPath(audioPath);
-        await _transcriptionRepo.Save(session);
-
-        _logger.Info($"Chunk saved for session {sessionId}. Path={audioPath}");
-    }
-
-    public async Task StopSessionAsync(Guid sessionId, CancellationToken ct)
+    public async Task StopSessionAsync(Guid sessionId, byte[] pcmData, CancellationToken ct)
     {
         var session = await GetSession(sessionId);
 
         try
         {
-            _logger.Info($"Stopping session {sessionId}, transcribing {session.AudioChunkPaths.Count} chunk(s).");
+            _logger.Info($"Stopping session {sessionId}, transcribing {pcmData.Length / 1024} KB of PCM.");
 
             session.MarkProcessing();
             await _transcriptionRepo.Save(session);
 
-            var segments = await _transcriber.FinalizeSessionAsync(session.AudioChunkPaths, ct);
+            var segments = await _transcriber.TranscribePcmAsync(pcmData, ct);
 
             session.AddSegments(segments);
             await _transcriptionRepo.Save(session);

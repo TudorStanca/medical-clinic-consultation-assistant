@@ -6,6 +6,5 @@ public interface ITranscriptionService
 {
     Task<TranscriptionSession> CreateSession();
     Task<TranscriptionSession> GetSession(Guid sessionId);
-    Task ProcessChunkAsync(Guid sessionId, string audioPath, CancellationToken ct);
-    Task StopSessionAsync(Guid sessionId, CancellationToken ct);
+    Task StopSessionAsync(Guid sessionId, byte[] pcmData, CancellationToken ct);
 }

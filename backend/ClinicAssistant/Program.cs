@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using ClinicAssistant.AudioTranscribers;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Controller.Interfaces;
@@ -62,18 +61,12 @@ public class Program
             builder.Services.AddSingleton<IAudioTranscriber, WhisperAudioTranscriber>();
         }
 
-        var audioRoot = Path.Combine(AppContext.BaseDirectory, "App_Data", "audio");
-
-        if (Directory.Exists(audioRoot))
-        {
-            Directory.Delete(audioRoot, recursive: true);
-        }
-
         var app = builder.Build();
+
+        app.UseWebSockets();
 
         app.UseMiddleware<GlobalExceptionMiddleware>();
 
-        // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -87,52 +80,16 @@ public class Program
         app.MapControllers();
         app.MapHub<TranscriptionHub>("/hubs/transcription");
 
+        app.Map("/ws/audio/{sessionId:guid}", async (HttpContext ctx, Guid sessionId, IServiceScopeFactory sf) =>
+            await AudioWebSocketHandler.HandleAsync(ctx, sessionId, sf));
+
         if (!whisperSettings.UseStub)
         {
-            var ffmpegOk = await CheckFfmpegAsync(whisperSettings.FfmpegPath);
-            if (!ffmpegOk)
-            {
-                StartupLog.Fatal(
-                    $"FFmpeg not found at '{whisperSettings.FfmpegPath}'. " +
-                    "Set WhisperSettings:FfmpegPath in appsettings.json or install FFmpeg on PATH.");
-                return;
-            }
-            StartupLog.Info($"FFmpeg found at '{whisperSettings.FfmpegPath}'.");
-
             StartupLog.Info("Initializing Whisper model at startup...");
             app.Services.GetRequiredService<IAudioTranscriber>();
             StartupLog.Info("Whisper model ready.");
         }
 
         await app.RunAsync();
-    }
-
-    private static async Task<bool> CheckFfmpegAsync(string ffmpegPath)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = ffmpegPath,
-                Arguments = "-version",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var process = Process.Start(psi);
-            if (process == null)
-            {
-                return false;
-            }
-
-            await process.WaitForExitAsync();
-
-            return process.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

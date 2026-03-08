@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Service.Interfaces;
@@ -54,25 +53,17 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
         await modelStream.CopyToAsync(fileStream);
     }
 
-    public async Task<IReadOnlyList<TranscriptSegment>> FinalizeSessionAsync(
-        IReadOnlyList<string> audioPaths, CancellationToken ct)
+    public async Task<IReadOnlyList<TranscriptSegment>> TranscribePcmAsync(byte[] pcmData, CancellationToken ct)
     {
-        if (audioPaths.Count == 0)
+        if (pcmData.Length == 0)
         {
-            Log.Warn("FinalizeSession called with no audio chunks — returning empty transcript.");
-
+            Log.Warn("TranscribePcm called with empty PCM data — returning empty transcript.");
             return [];
         }
 
-        Log.Info($"Finalizing session: concatenating {audioPaths.Count} chunk(s) for transcription.");
+        Log.Info($"Wrapping {pcmData.Length / 1024} KB of PCM into WAV and starting Whisper...");
 
-        var sortedPaths = audioPaths.OrderBy(p => p).ToList();
-        var totalBytes = await ConcatenateFilesAsync(sortedPaths, ct);
-
-        Log.Info($"FFmpeg converting {totalBytes.Length / 1024} KB of WebM audio...");
-        var wavBytes = await ConvertWebMToWavAsync(totalBytes, ct);
-
-        Log.Info($"FFmpeg done, {wavBytes.Length / 1024} KB WAV. Starting Whisper...");
+        var wavBytes = WrapPcmInWav(pcmData);
         var segments = await TranscribeWavAsync(wavBytes, ct);
 
         Log.Info($"Whisper done, {segments.Count} segment(s).");
@@ -80,53 +71,21 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
         return segments;
     }
 
-    private static async Task<byte[]> ConcatenateFilesAsync(IReadOnlyList<string> paths, CancellationToken ct)
+    private static byte[] WrapPcmInWav(byte[] pcmData, int sampleRate = 16000, short channels = 1, short bitsPerSample = 16)
     {
-        using var ms = new MemoryStream();
-        foreach (var path in paths)
-        {
-            var bytes = await File.ReadAllBytesAsync(path, ct);
-            await ms.WriteAsync(bytes, ct);
-        }
+        int byteRate = sampleRate * channels * (bitsPerSample / 8);
+        short blockAlign = (short)(channels * (bitsPerSample / 8));
+
+        using var ms = new MemoryStream(44 + pcmData.Length);
+        using var w = new BinaryWriter(ms);
+
+        w.Write("RIFF"u8); w.Write(36 + pcmData.Length);
+        w.Write("WAVE"u8); w.Write("fmt "u8); w.Write(16);
+        w.Write((short)1); w.Write(channels); w.Write(sampleRate);
+        w.Write(byteRate); w.Write(blockAlign); w.Write(bitsPerSample);
+        w.Write("data"u8); w.Write(pcmData.Length); w.Write(pcmData);
+
         return ms.ToArray();
-    }
-
-    private async Task<byte[]> ConvertWebMToWavAsync(byte[] webmBytes, CancellationToken ct)
-    {
-        var inputPath = Path.Combine(Path.GetTempPath(), $"whisper_in_{Guid.NewGuid()}.webm");
-        var outputPath = Path.Combine(Path.GetTempPath(), $"whisper_out_{Guid.NewGuid()}.wav");
-        try
-        {
-            await File.WriteAllBytesAsync(inputPath, webmBytes, ct);
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = _settings.FfmpegPath,
-                Arguments = $"-y -i \"{inputPath}\" -ar 16000 -ac 1 \"{outputPath}\"",
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(psi)
-                ?? throw new InvalidOperationException("Failed to start FFmpeg process.");
-
-            var stderr = await process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct);
-
-            if (process.ExitCode != 0)
-            {
-                Log.Error($"FFmpeg exited with code {process.ExitCode}. Stderr: {stderr}");
-                throw new InvalidOperationException($"FFmpeg conversion failed (exit code {process.ExitCode}).");
-            }
-
-            return await File.ReadAllBytesAsync(outputPath, ct);
-        }
-        finally
-        {
-            File.Delete(inputPath);
-            File.Delete(outputPath);
-        }
     }
 
     private async Task<List<TranscriptSegment>> TranscribeWavAsync(byte[] wavBytes, CancellationToken ct)

@@ -12,25 +12,7 @@ const useTranscriptionApi = () => {
     return response.data;
   }, [axios]);
 
-  const uploadChunk = useCallback(
-    async (sessionId: string, blob: Blob): Promise<void> => {
-      const formData = new FormData();
-      formData.append("chunk", blob, `chunk_${Date.now()}.webm`);
-      await axios.post(`${transcriptionUrl}/${sessionId}/chunks`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-    },
-    [axios]
-  );
-
-  const stopSession = useCallback(
-    async (sessionId: string): Promise<void> => {
-      await axios.post(`${transcriptionUrl}/${sessionId}/stop`);
-    },
-    [axios]
-  );
-
-  return { createSession, uploadChunk, stopSession };
+  return { createSession };
 };
 
 export default useTranscriptionApi;

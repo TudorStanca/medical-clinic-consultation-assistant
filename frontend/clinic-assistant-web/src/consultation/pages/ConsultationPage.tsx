@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, Chip, Paper, Typography } from "@mui/material";
 import useTranscriptionApi from "../useTranscriptionApi";
 import useTranscriptionHub from "../useTranscriptionHub";
+import useAudioWebSocket from "../useAudioWebSocket";
 import type { SessionStatusEvent, TranscriptSegment } from "../props";
 
 const formatMs = (ms: number): string => {
@@ -18,20 +19,25 @@ const ConsultationPage = () => {
   const [status, setStatus] = useState<string>("Idle");
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
-  const lastUploadRef = useRef<Promise<void>>(Promise.resolve());
 
-  const { createSession, uploadChunk, stopSession } = useTranscriptionApi();
+  const { createSession } = useTranscriptionApi();
+  const { startStreaming, stopStreaming } = useAudioWebSocket();
 
   const handleSegment = useCallback((segment: TranscriptSegment) => {
     setSegments((prev) => [...prev, segment]);
   }, []);
 
-  const handleStatus = useCallback((event: SessionStatusEvent) => {
-    setStatus(event.status);
-  }, []);
+  const handleStatus = useCallback(
+    (event: SessionStatusEvent) => {
+      setStatus(event.status);
+      if ((event.status === "Done" || event.status === "Failed") && sessionId) {
+        disconnect(sessionId);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sessionId]
+  );
 
   const { connect, disconnect } = useTranscriptionHub({
     onSegment: handleSegment,
@@ -49,48 +55,17 @@ const ConsultationPage = () => {
     setStatus("Recording");
 
     await connect(id);
+    await startStreaming(id);
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    streamRef.current = stream;
-
-    const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-    mediaRecorderRef.current = mediaRecorder;
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        const upload = uploadChunk(id, event.data).catch((err) => console.error("Chunk upload failed:", err));
-        lastUploadRef.current = upload;
-      }
-    };
-
-    mediaRecorder.start(5000);
     setRecording(true);
   };
 
-  const handleStop = async () => {
-    const recorder = mediaRecorderRef.current;
-
-    if (recorder && recorder.state !== "inactive") {
-      await new Promise<void>((resolve) => {
-        recorder.onstop = () => resolve();
-        recorder.stop();
-      });
-    }
-
-    await lastUploadRef.current;
-
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    mediaRecorderRef.current = null;
-
+  const handleStop = () => {
+    stopStreaming();
     setRecording(false);
     setStatus("Transcribing");
-
-    if (sessionId) {
-      await stopSession(sessionId);
-      // stopSession resolves only after Whisper finishes and segments are published via SignalR
-      await disconnect(sessionId);
-    }
+    // Backend finalizes async; SignalR will push status "Done"/"Failed"
+    // disconnect happens in handleStatus when Done/Failed arrives
   };
 
   return (
@@ -119,7 +94,9 @@ const ConsultationPage = () => {
           <Chip
             label={`Status: ${status}`}
             variant="outlined"
-            color={recording ? "error" : status === "Done" ? "success" : status === "Transcribing" ? "warning" : "default"}
+            color={
+              recording ? "error" : status === "Done" ? "success" : status === "Transcribing" ? "warning" : "default"
+            }
           />
           {recording && (
             <Box
