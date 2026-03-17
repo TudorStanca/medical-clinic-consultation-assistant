@@ -3,11 +3,17 @@ using ClinicAssistant.AudioTranscribers;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Controller.Middleware;
+using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Domain.Validators;
 using ClinicAssistant.Repository;
+using ClinicAssistant.Repository.Mapping;
 using ClinicAssistant.Service;
 using ClinicAssistant.Service.Interfaces;
+using ClinicAssistant.Service.Mapping;
 using ClinicAssistant.WebSockets;
+using FluentValidation;
 using log4net;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClinicAssistant;
 
@@ -20,8 +26,7 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
-        builder.Services.AddControllers()
-            .AddApplicationPart(typeof(ClinicAssistant.Controller.Controllers.TranscriptionController).Assembly);
+        builder.Services.AddControllers();
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
@@ -45,6 +50,24 @@ public class Program
         builder.Logging.ClearProviders();
         builder.Logging.AddLog4Net("log4net.config");
 
+        // EF Core + PostgreSQL
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+        // ASP.NET Core Identity (UserManager for password hashing)
+        builder.Services.AddIdentityCore<AppUser>()
+            .AddEntityFrameworkStores<AppDbContext>();
+
+        // AutoMapper
+        builder.Services.AddAutoMapper(cfg =>
+        {
+            cfg.AddProfile<EFEntitiesMappingProfile>();
+            cfg.AddProfile<AutoMapperServiceProfile>();
+        });
+
+        // FluentValidation
+        builder.Services.AddValidatorsFromAssemblyContaining<DoctorPostDTOValidator>();
+
         builder.Services.Configure<WhisperSettings>(builder.Configuration.GetSection("WhisperSettings"));
 
         var whisperSettings = builder.Configuration
@@ -52,10 +75,22 @@ public class Program
             .Get<WhisperSettings>()
             ?? throw new InvalidOperationException("WhisperSettings section is missing in appsettings.json.");
 
-        builder.Services.AddSingleton<ITranscriptionRepository, InMemoryTranscriptionRepository>();
-        builder.Services.AddScoped<ITranscriptionService, TranscriptionService>();
+        // Repositories (Scoped)
+        builder.Services.AddScoped<IConsultationSessionRepository, ConsultationSessionRepository>();
+        builder.Services.AddScoped<IMedicalLetterRepository, MedicalLetterRepository>();
+        builder.Services.AddScoped<IUploadedDocumentRepository, UploadedDocumentRepository>();
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+        // Services (Scoped)
+        builder.Services.AddScoped<IConsultationSessionService, ConsultationSessionService>();
+        builder.Services.AddScoped<IDoctorService, DoctorService>();
+        builder.Services.AddScoped<IPatientService, PatientService>();
+        builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
+
+        // SignalR publisher (Singleton — stateless)
         builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
 
+        // Audio transcriber (Singleton — holds Whisper model in memory)
         if (whisperSettings.UseStub)
         {
             builder.Services.AddSingleton<IAudioTranscriber, StubAudioTranscriber>();

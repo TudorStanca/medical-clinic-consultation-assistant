@@ -19,8 +19,8 @@ public static class AudioWebSocketHandler
         // Validate session exists before accepting
         using (var scope = scopeFactory.CreateScope())
         {
-            var service = scope.ServiceProvider.GetRequiredService<ITranscriptionService>();
-            await service.GetSession(sessionId);
+            var service = scope.ServiceProvider.GetRequiredService<IConsultationSessionService>();
+            await service.GetSessionAsync(sessionId);
         }
 
         using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
@@ -58,7 +58,7 @@ public static class AudioWebSocketHandler
             var pcmBytes = await File.ReadAllBytesAsync(tempPath, CancellationToken.None);
 
             using var stopScope = scopeFactory.CreateScope();
-            var stopService = stopScope.ServiceProvider.GetRequiredService<ITranscriptionService>();
+            var stopService = stopScope.ServiceProvider.GetRequiredService<IConsultationSessionService>();
             await stopService.StopSessionAsync(sessionId, pcmBytes, CancellationToken.None);
         }
         finally
