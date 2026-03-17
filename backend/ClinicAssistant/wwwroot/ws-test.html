@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WS Audio Test (Dev)</title>
+  <style>
+    body { font-family: monospace; padding: 20px; max-width: 860px; margin: 0 auto; background: #1e1e1e; color: #d4d4d4; }
+    h2 { color: #9cdcfe; }
+    button { padding: 8px 20px; margin: 4px; cursor: pointer; border: none; border-radius: 4px; font-size: 14px; }
+    #btnStart  { background: #4ec9b0; color: #000; }
+    #btnStop   { background: #f44747; color: #fff; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    #statusBar { margin: 10px 0; font-size: 14px; }
+    #sessionId { color: #ce9178; font-size: 12px; margin-bottom: 8px; }
+    #log {
+      border: 1px solid #3c3c3c; padding: 10px; height: 380px;
+      overflow-y: auto; background: #252526; border-radius: 4px;
+    }
+    .info    { color: #9cdcfe; }
+    .ok      { color: #4ec9b0; }
+    .warn    { color: #dcdcaa; }
+    .err     { color: #f44747; }
+    .segment { color: #b5cea8; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>WebSocket Audio Test — Dev Only</h2>
+  <div id="sessionId">No session</div>
+  <div>
+    <button id="btnStart">▶ Start Recording</button>
+    <button id="btnStop" disabled>■ Stop</button>
+    <span id="statusBar">Idle</span>
+  </div>
+  <br />
+  <div id="log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8/dist/browser/signalr.min.js"></script>
+  <script>
+    const API = 'http://localhost:5056';
+
+    let sessionId = null, audioCtx = null, workletNode = null, ws = null, stream = null, hub = null;
+
+    const log = (msg, cls = 'info') => {
+      const el = document.getElementById('log');
+      const line = document.createElement('div');
+      line.className = cls;
+      line.textContent = new Date().toISOString().slice(11, 23) + '  ' + msg;
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight;
+    };
+
+    const setStatus = (s) => { document.getElementById('statusBar').textContent = s; };
+
+    const formatMs = (ms) => {
+      const s = Math.floor(ms / 1000);
+      return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60]
+        .map(v => String(v).padStart(2, '0')).join(':');
+    };
+
+    document.getElementById('btnStart').onclick = async () => {
+      document.getElementById('btnStart').disabled = true;
+      try {
+        // 1. Create session
+        const res = await fetch(`${API}/api/Transcription`, { method: 'POST' });
+        if (!res.ok) throw new Error(`POST /api/Transcription → ${res.status}`);
+        const data = await res.json();
+        sessionId = data.sessionId;
+        document.getElementById('sessionId').textContent = 'Session: ' + sessionId;
+        log('Session created: ' + sessionId, 'ok');
+
+        // 2. Connect SignalR
+        hub = new signalR.HubConnectionBuilder()
+          .withUrl(`${API}/hubs/transcription`)
+          .build();
+
+        hub.on('TranscriptSegment', (seg) => {
+          log('[' + formatMs(seg.startMs) + '] ' + seg.text, 'segment');
+        });
+
+        hub.on('SessionStatus', async (ev) => {
+          log('Status → ' + ev.status, 'info');
+          setStatus(ev.status);
+          if (ev.status === 'Done' || ev.status === 'Failed') {
+            await hub.invoke('LeaveSession', sessionId).catch(() => {});
+            await hub.stop();
+          }
+        });
+
+        await hub.start();
+        await hub.invoke('JoinSession', sessionId);
+        log('SignalR connected and joined session', 'ok');
+
+        // 3. Setup AudioWorklet (inlined as blob so no extra static file needed)
+        const workletCode = `
+class PcmProcessor extends AudioWorkletProcessor {
+  process(inputs) {
+    const ch = inputs[0]?.[0];
+    if (!ch) return true;
+    const i16 = new Int16Array(ch.length);
+    for (let i = 0; i < ch.length; i++) {
+      const c = Math.max(-1, Math.min(1, ch[i]));
+      i16[i] = c < 0 ? c * 32768 : c * 32767;
+    }
+    this.port.postMessage(i16.buffer, [i16.buffer]);
+    return true;
+  }
+}
+registerProcessor('pcm-processor', PcmProcessor);`;
+
+        const blobUrl = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
+        audioCtx = new AudioContext({ sampleRate: 16000 });
+        await audioCtx.audioWorklet.addModule(blobUrl);
+        URL.revokeObjectURL(blobUrl);
+
+        // 4. Open mic
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioCtx.createMediaStreamSource(stream);
+        workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
+
+        // 5. Open WebSocket
+        const wsProto = API.startsWith('https') ? 'wss' : 'ws';
+        ws = new WebSocket(`${wsProto}://localhost:5056/ws/audio/${sessionId}`);
+        ws.binaryType = 'arraybuffer';
+        await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+        log('WebSocket connected', 'ok');
+
+        workletNode.port.onmessage = (e) => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(e.data);
+        };
+        source.connect(workletNode);
+        workletNode.connect(audioCtx.destination);
+
+        setStatus('Recording');
+        log('Recording...', 'ok');
+        document.getElementById('btnStop').disabled = false;
+
+      } catch (e) {
+        log('Error: ' + e, 'err');
+        document.getElementById('btnStart').disabled = false;
+      }
+    };
+
+    document.getElementById('btnStop').onclick = () => {
+      document.getElementById('btnStop').disabled = true;
+      workletNode?.disconnect();
+      stream?.getTracks().forEach(t => t.stop());
+      audioCtx?.close();
+      ws?.close(1000, 'Session ended');
+      setStatus('Transcribing...');
+      log('Stopped — waiting for backend to transcribe...', 'warn');
+    };
+  </script>
+</body>
+</html>

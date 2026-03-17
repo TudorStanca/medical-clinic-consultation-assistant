@@ -12,10 +12,15 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.9" />
     <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+    <PackageReference Include="Whisper.net" Version="1.9.0" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.0" />
+    <PackageReference Include="Whisper.net.Runtime.Cuda" Version="1.9.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ClinicalAssistant.Domain\ClinicAssistant.Domain.csproj" />
+    <ProjectReference Include="..\ClinicAssistant.Controller\ClinicAssistant.Controller.csproj" />
+    <ProjectReference Include="..\ClinicAssistant.Service\ClinicAssistant.Service.csproj" />
+    <ProjectReference Include="..\ClinicAssistant.Repository\ClinicAssistant.Repository.csproj" />
   </ItemGroup>
 
 </Project>
