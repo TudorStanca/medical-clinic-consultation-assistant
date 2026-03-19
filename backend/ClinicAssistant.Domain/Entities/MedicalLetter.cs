@@ -14,8 +14,11 @@ public class MedicalLetter
 
     public required string LetterType { get; set; }
     public required string Location { get; set; }
-    public DateTime WrittenAt { get; set; } = DateTime.UtcNow;
+    public DateTime WrittenAt { get; init; } = DateTime.UtcNow;
     public DateTime? LastEditedAt { get; set; }
+
+    private readonly List<UploadedDocument> _documents = [];
+    public IReadOnlyList<UploadedDocument> Documents => _documents;
 
     public ConsultationSession Session { get; set; } = null!;
 }

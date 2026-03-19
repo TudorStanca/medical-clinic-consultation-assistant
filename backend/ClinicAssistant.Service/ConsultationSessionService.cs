@@ -2,28 +2,30 @@ using AutoMapper;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.DTOs;
 using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Domain.Enums;
 using ClinicAssistant.Domain.Exceptions;
 using ClinicAssistant.Service.Interfaces;
 using FluentValidation;
 using log4net;
+using Microsoft.Extensions.Options;
 
 namespace ClinicAssistant.Service;
 
 public class ConsultationSessionService(
     IConsultationSessionRepository sessionRepo,
-    IUserRepository userRepo,
     ITranscriptPublisher publisher,
     IAudioTranscriber transcriber,
     IMapper mapper,
-    IValidator<SessionPostDTO> validator) : IConsultationSessionService
+    IValidator<SessionPostDTO> validator,
+    IOptions<FileStorageSettings> fileStorageOptions) : IConsultationSessionService
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(ConsultationSessionService));
     private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
-    private readonly IUserRepository _userRepo = userRepo;
     private readonly ITranscriptPublisher _publisher = publisher;
     private readonly IAudioTranscriber _transcriber = transcriber;
     private readonly IMapper _mapper = mapper;
     private readonly IValidator<SessionPostDTO> _validator = validator;
+    private readonly FileStorageSettings _fileStorage = fileStorageOptions.Value;
 
     public async Task<SessionCreatedResponseDTO> CreateSessionAsync(SessionPostDTO dto)
     {
@@ -32,12 +34,6 @@ public class ConsultationSessionService(
         var result = await _validator.ValidateAsync(dto);
         if (!result.IsValid)
             throw new EntityValidationException(result.Errors.Select(e => e.ErrorMessage));
-
-        _ = await _userRepo.GetDoctorByIdAsync(dto.DoctorId)
-            ?? throw new NotFoundException($"Doctor {dto.DoctorId} not found.");
-
-        _ = await _userRepo.GetPatientByIdAsync(dto.PatientId)
-            ?? throw new NotFoundException($"Patient {dto.PatientId} not found.");
 
         var session = new ConsultationSession
         {
@@ -74,7 +70,7 @@ public class ConsultationSessionService(
         {
             _logger.Info($"Stopping session {sessionId}, transcribing {pcmData.Length / 1024} KB of PCM.");
 
-            var audioDir = Path.Combine("App_Data", "audio");
+            var audioDir = _fileStorage.AudioPath;
             Directory.CreateDirectory(audioDir);
             var audioPath = Path.Combine(audioDir, $"{sessionId}.pcm");
             await File.WriteAllBytesAsync(audioPath, pcmData, ct);
@@ -113,5 +109,25 @@ public class ConsultationSessionService(
 
             throw;
         }
+    }
+
+    public async Task UpdateStatusAsync(Guid sessionId, SessionStatus status)
+    {
+        _logger.Info($"Updating session {sessionId} status to {status}");
+
+        var session = await _sessionRepo.GetByIdAsync(sessionId)
+            ?? throw new NotFoundException($"Session {sessionId} not found.");
+
+        switch (status)
+        {
+            case SessionStatus.Recording: session.MarkRecording(); break;
+            case SessionStatus.Processing: session.MarkProcessing(); break;
+            case SessionStatus.Done: session.MarkDone(); break;
+            case SessionStatus.Failed: session.MarkFailed(); break;
+            default:
+                throw new EntityValidationException([$"Cannot manually set status to {status}."]);
+        }
+
+        await _sessionRepo.UpdateAsync(session);
     }
 }

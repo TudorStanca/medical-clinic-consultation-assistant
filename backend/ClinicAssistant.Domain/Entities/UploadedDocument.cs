@@ -13,6 +13,9 @@ public class UploadedDocument
     public DateTime UploadedAt { get; init; } = DateTime.UtcNow;
     public DocumentType DocumentType { get; set; }
 
+    public Guid? MedicalLetterId { get; set; }
+
     public Patient Patient { get; set; } = null!;
     public ConsultationSession? Session { get; set; }
+    public MedicalLetter? MedicalLetter { get; set; }
 }

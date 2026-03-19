@@ -16,9 +16,8 @@ public class AutoMapperServiceProfile : Profile
             .ForMember(p => p.UserName, opt => opt.MapFrom(src => src.Email))
             .ForMember(p => p.PasswordHash, opt => opt.Ignore());
 
-        CreateMap<SessionPostDTO, ConsultationSession>();
-
         CreateMap<MedicalLetterPutDTO, MedicalLetter>()
+            .ForMember(m => m.WrittenAt, opt => opt.Ignore())
             .ForMember(m => m.LastEditedAt, opt => opt.MapFrom(_ => DateTime.UtcNow));
     }
 }

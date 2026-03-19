@@ -1,5 +1,6 @@
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.DTOs;
+using ClinicAssistant.Domain.Enums;
 using log4net;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,5 +41,16 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
         _logger.Info($"Received request for transcript of session={sessionId}");
         var segments = await _sessionService.GetTranscriptAsync(sessionId);
         return Ok(segments);
+    }
+
+    [HttpPatch("{sessionId:guid}/status")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(422)]
+    public async Task<ActionResult> UpdateStatus(Guid sessionId, [FromBody] SessionStatusPatchDTO dto)
+    {
+        _logger.Info($"Received request to update session={sessionId} status to {dto.Status}");
+        await _sessionService.UpdateStatusAsync(sessionId, dto.Status);
+        return NoContent();
     }
 }

@@ -13,6 +13,7 @@ using ClinicAssistant.Service.Mapping;
 using ClinicAssistant.WebSockets;
 using FluentValidation;
 using log4net;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClinicAssistant;
@@ -27,6 +28,22 @@ public class Program
 
         // Add services to the container.
         builder.Services.AddControllers();
+
+        builder.Services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var errors = context.ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return new UnprocessableEntityObjectResult(new
+                {
+                    statusCode = 422,
+                    message = "Validation failed.",
+                    errors
+                });
+            };
+        });
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
@@ -67,8 +84,10 @@ public class Program
 
         // FluentValidation
         builder.Services.AddValidatorsFromAssemblyContaining<DoctorPostDTOValidator>();
+        builder.Services.AddValidatorsFromAssemblyContaining<ConsultationSessionService>();
 
         builder.Services.Configure<WhisperSettings>(builder.Configuration.GetSection("WhisperSettings"));
+        builder.Services.Configure<FileStorageSettings>(builder.Configuration.GetSection("FileStorageSettings"));
 
         var whisperSettings = builder.Configuration
             .GetSection("WhisperSettings")

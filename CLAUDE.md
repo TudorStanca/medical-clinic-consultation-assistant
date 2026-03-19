@@ -81,6 +81,16 @@ MediaRecorder outputs **WebM/Opus**; Whisper.net expects **WAV**. Conversion nee
 - All services/repos currently registered as `Singleton` (will switch to `Scoped` when EF Core is added)
 - No DTOs yet — controllers return anonymous objects. Add typed `XResponseDTO` as features grow.
 - No FluentValidation or AutoMapper yet — add when entities multiply.
+- **No alignment spaces** — never pad tokens with extra spaces to align columns. One space between each token, always:
+  ```csharp
+  // WRONG
+  private readonly ILog                        _logger      = ...;
+  private readonly IUploadedDocumentRepository _documentRepo = ...;
+  // CORRECT
+  private readonly ILog _logger = ...;
+  private readonly IUploadedDocumentRepository _documentRepo = ...;
+  ```
+  Same rule applies to record parameters, field declarations, and assignments.
 
 ## Frontend Architecture
 

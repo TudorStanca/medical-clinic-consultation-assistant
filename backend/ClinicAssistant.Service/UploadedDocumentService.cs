@@ -6,18 +6,21 @@ using ClinicAssistant.Domain.Exceptions;
 using ClinicAssistant.Service.Interfaces;
 using log4net;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 
 namespace ClinicAssistant.Service;
 
 public class UploadedDocumentService(
     IUploadedDocumentRepository documentRepo,
     IUserRepository userRepo,
-    IConsultationSessionRepository sessionRepo) : IUploadedDocumentService
+    IConsultationSessionRepository sessionRepo,
+    IOptions<FileStorageSettings> fileStorageOptions) : IUploadedDocumentService
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(UploadedDocumentService));
     private readonly IUploadedDocumentRepository _documentRepo = documentRepo;
     private readonly IUserRepository _userRepo = userRepo;
     private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
+    private readonly FileStorageSettings _fileStorage = fileStorageOptions.Value;
 
     private static readonly HashSet<string> AllowedExtensions = [".pdf"];
 
@@ -30,25 +33,35 @@ public class UploadedDocumentService(
 
         ValidateFile(file);
 
-        _ = await _userRepo.GetPatientByIdAsync(patientId)
-            ?? throw new NotFoundException($"Patient {patientId} not found.");
+        var patientTask = await _userRepo.GetPatientByIdAsync(patientId);
+        var uploaderTask = await _userRepo.GetUserByIdAsync(uploadedByUserId);
 
-        _ = await _userRepo.GetUserByIdAsync(uploadedByUserId)
-            ?? throw new NotFoundException($"User {uploadedByUserId} not found.");
+        var errors = new List<string>();
+        if (patientTask == null) errors.Add($"Patient {patientId} not found.");
+        if (uploaderTask == null) errors.Add($"User {uploadedByUserId} not found.");
+        if (errors.Count > 0) throw new EntityValidationException(errors);
 
-        if (sessionId.HasValue && !await _sessionRepo.ExistsAsync(sessionId.Value))
-            throw new NotFoundException($"Session {sessionId.Value} not found.");
+        if (sessionId.HasValue)
+        {
+            var session = await _sessionRepo.GetByIdAsync(sessionId.Value)
+                ?? throw new NotFoundException($"Session {sessionId.Value} not found.");
+            if (session.Status is SessionStatus.Done or SessionStatus.Failed)
+                throw new EntityValidationException(["Cannot upload documents to a closed session."]);
+        }
 
         var safeFileName = Path.GetFileName(file.FileName);
-        var uploadDir = Path.Combine("App_Data", "uploads", patientId);
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var docId = Guid.NewGuid();
+        var uploadDir = Path.Combine(_fileStorage.UploadsPath, patientId);
         Directory.CreateDirectory(uploadDir);
-        var filePath = Path.Combine(uploadDir, $"{Guid.NewGuid()}_{safeFileName}");
+        var filePath = Path.Combine(uploadDir, $"{docId}{extension}");
 
         await using (var stream = File.Create(filePath))
             await file.CopyToAsync(stream);
 
         var document = new UploadedDocument
         {
+            Id = docId,
             PatientId = patientId,
             UploadedByUserId = uploadedByUserId,
             SessionId = sessionId,

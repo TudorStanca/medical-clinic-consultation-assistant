@@ -59,6 +59,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             .HasForeignKey(d => d.SessionId)
             .OnDelete(DeleteBehavior.SetNull).IsRequired(false);
 
+        // MedicalLetter → UploadedDocuments (one-to-many, nullable FK)
+        builder.Entity<MedicalLetter>()
+            .HasMany(l => l.Documents).WithOne(d => d.MedicalLetter)
+            .HasForeignKey(d => d.MedicalLetterId)
+            .OnDelete(DeleteBehavior.SetNull).IsRequired(false);
+
+        builder.Entity<MedicalLetter>()
+            .Navigation(l => l.Documents).UsePropertyAccessMode(PropertyAccessMode.Field);
+
         // Sex enum → string in DB
         builder.Entity<Patient>()
             .Property(p => p.Sex).HasConversion<string>();
@@ -66,5 +75,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         // DocumentType enum → string in DB
         builder.Entity<UploadedDocument>()
             .Property(d => d.DocumentType).HasConversion<string>();
+
+        // SessionStatus enum → string in DB
+        builder.Entity<ConsultationSession>()
+            .Property(s => s.Status).HasConversion<string>();
     }
 }
