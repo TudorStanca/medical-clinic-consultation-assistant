@@ -34,6 +34,7 @@ public class UploadedDocumentController(IUploadedDocumentService documentService
     {
         _logger.Info($"Received upload request for patient {patientId}");
         var response = await _documentService.UploadAsync(file, patientId, uploadedByUserId, documentType, sessionId);
+
         return CreatedAtAction(nameof(GetByPatient), new { patientId = response.PatientId }, response);
     }
 
@@ -49,9 +50,12 @@ public class UploadedDocumentController(IUploadedDocumentService documentService
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (!User.IsInRole(Roles.Admin) && !User.IsInRole(Roles.Doctor) && currentUserId != patientId)
+        {
             return Forbid();
+        }
 
         var docs = await _documentService.GetByPatientIdAsync(patientId);
+
         return Ok(docs);
     }
 
@@ -65,6 +69,7 @@ public class UploadedDocumentController(IUploadedDocumentService documentService
     {
         _logger.Info($"Received request to delete document {id}");
         await _documentService.DeleteAsync(id);
+
         return NoContent();
     }
 }

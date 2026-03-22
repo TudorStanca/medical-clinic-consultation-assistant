@@ -42,6 +42,7 @@ public class Program
                 var errors = context.ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage);
+
                 return new UnprocessableEntityObjectResult(new
                 {
                     statusCode = 422,
@@ -217,8 +218,12 @@ public class Program
         var adminSettings = scope.ServiceProvider.GetRequiredService<IOptions<AdminSettings>>().Value;
 
         foreach (var role in new[] { Roles.Doctor, Roles.Patient, Roles.Admin })
+        {
             if (!await roleManager.RoleExistsAsync(role))
+            {
                 await roleManager.CreateAsync(new IdentityRole(role));
+            }
+        }
 
         if (await userManager.FindByEmailAsync(adminSettings.Email) is null)
         {
@@ -232,9 +237,13 @@ public class Program
             };
             var result = await userManager.CreateAsync(admin, adminSettings.Password);
             if (result.Succeeded)
+            {
                 await userManager.AddToRoleAsync(admin, Roles.Admin);
+            }
             else
+            {
                 StartupLog.Warn($"Admin seed failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
         }
     }
 }

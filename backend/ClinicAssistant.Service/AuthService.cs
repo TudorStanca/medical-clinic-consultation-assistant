@@ -22,7 +22,9 @@ public class AuthService(IUserRepository userRepository, IOptions<JwtSettings> j
 
         var passwordValid = await _userRepository.CheckPasswordAsync(user, dto.Password);
         if (!passwordValid)
+        {
             throw new UnauthorizedException("Invalid credentials.");
+        }
 
         var roles = await _userRepository.GetRolesAsync(user);
 

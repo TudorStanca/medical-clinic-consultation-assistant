@@ -23,13 +23,17 @@ public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<
 
         var result = await _validator.ValidateAsync(dto);
         if (!result.IsValid)
+        {
             throw new EntityValidationException(result.Errors.Select(e => e.ErrorMessage));
+        }
 
         var doctor = _mapper.Map<Doctor>(dto);
 
         var (success, errors) = await _userRepo.CreateDoctorAsync(doctor, dto.Password);
         if (!success)
+        {
             throw new EntityValidationException(errors);
+        }
 
         return _mapper.Map<DoctorResponseDTO>(doctor);
     }
@@ -49,6 +53,7 @@ public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<
         _logger.Info("Getting all doctors.");
 
         var doctors = await _userRepo.GetAllDoctorsAsync();
+
         return doctors.Select(d => _mapper.Map<DoctorResponseDTO>(d));
     }
 }

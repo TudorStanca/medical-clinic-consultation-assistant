@@ -45,7 +45,10 @@ public class UserRepository(AppDbContext context, UserManager<AppUser> userManag
     {
         var result = await _userManager.CreateAsync(doctor, password);
         if (result.Succeeded)
+        {
             await _userManager.AddToRoleAsync(doctor, Roles.Doctor);
+        }
+
         return (result.Succeeded, result.Errors.Select(e => e.Description));
     }
 
@@ -53,7 +56,10 @@ public class UserRepository(AppDbContext context, UserManager<AppUser> userManag
     {
         var result = await _userManager.CreateAsync(patient, password);
         if (result.Succeeded)
+        {
             await _userManager.AddToRoleAsync(patient, Roles.Patient);
+        }
+
         return (result.Succeeded, result.Errors.Select(e => e.Description));
     }
 

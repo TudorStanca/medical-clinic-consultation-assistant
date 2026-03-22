@@ -24,6 +24,7 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
     {
         _logger.Info($"Received request to create doctor: {dto.Email}");
         var doctor = await _doctorService.CreateDoctorAsync(dto);
+
         return CreatedAtAction(nameof(GetDoctor), new { id = doctor.Id }, doctor);
     }
 
@@ -37,6 +38,7 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
     {
         _logger.Info($"Received request to get doctor: {id}");
         var doctor = await _doctorService.GetByIdAsync(id);
+
         return Ok(doctor);
     }
 
@@ -49,6 +51,7 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
     {
         _logger.Info("Received request to get all doctors.");
         var doctors = await _doctorService.GetAllAsync();
+
         return Ok(doctors);
     }
 }

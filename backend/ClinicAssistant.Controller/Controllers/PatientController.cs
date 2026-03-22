@@ -23,6 +23,7 @@ public class PatientController(IPatientService patientService) : ControllerBase
     {
         _logger.Info($"Received request to create patient: {dto.Email}");
         var patient = await _patientService.CreatePatientAsync(dto);
+
         return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, patient);
     }
 
@@ -38,9 +39,12 @@ public class PatientController(IPatientService patientService) : ControllerBase
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (!User.IsInRole(Roles.Admin) && !User.IsInRole(Roles.Doctor) && currentUserId != id)
+        {
             return Forbid();
+        }
 
         var patient = await _patientService.GetByIdAsync(id);
+
         return Ok(patient);
     }
 
@@ -53,6 +57,7 @@ public class PatientController(IPatientService patientService) : ControllerBase
     {
         _logger.Info("Received request to get all patients.");
         var patients = await _patientService.GetAllAsync();
+
         return Ok(patients);
     }
 }

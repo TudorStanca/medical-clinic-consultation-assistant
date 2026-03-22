@@ -26,6 +26,7 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     {
         _logger.Info($"Received request to create consultation session. Doctor={dto.DoctorId} Patient={dto.PatientId}");
         var response = await _sessionService.CreateSessionAsync(dto);
+
         return CreatedAtAction(nameof(GetSession), new { sessionId = response.SessionId }, response);
     }
 
@@ -42,7 +43,9 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (User.IsInRole(Roles.Patient) && session.PatientId != currentUserId)
+        {
             return Forbid();
+        }
 
         return Ok(session);
     }
@@ -60,9 +63,12 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (User.IsInRole(Roles.Patient) && session.PatientId != currentUserId)
+        {
             return Forbid();
+        }
 
         var segments = await _sessionService.GetTranscriptAsync(sessionId);
+
         return Ok(segments);
     }
 
@@ -77,6 +83,7 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     {
         _logger.Info($"Received request to update session={sessionId} status to {dto.Status}");
         await _sessionService.UpdateStatusAsync(sessionId, dto.Status);
+
         return NoContent();
     }
 }

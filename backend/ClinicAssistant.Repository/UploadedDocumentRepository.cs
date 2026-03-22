@@ -12,6 +12,7 @@ public class UploadedDocumentRepository(AppDbContext context) : IUploadedDocumen
     {
         _context.UploadedDocuments.Add(document);
         await _context.SaveChangesAsync();
+
         return document;
     }
 

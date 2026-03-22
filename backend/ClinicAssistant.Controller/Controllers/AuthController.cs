@@ -21,6 +21,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     {
         _logger.Info($"Received login request for: {dto.Email}");
         var response = await _authService.LoginAsync(dto);
+
         return Ok(response);
     }
 }

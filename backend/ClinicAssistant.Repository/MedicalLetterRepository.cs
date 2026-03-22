@@ -12,6 +12,7 @@ public class MedicalLetterRepository(AppDbContext context) : IMedicalLetterRepos
     {
         _context.MedicalLetters.Add(letter);
         await _context.SaveChangesAsync();
+
         return letter;
     }
 
@@ -34,7 +35,9 @@ public class MedicalLetterRepository(AppDbContext context) : IMedicalLetterRepos
     public async Task UpdateAsync(MedicalLetter letter)
     {
         if (_context.Entry(letter).State == EntityState.Detached)
+        {
             _context.MedicalLetters.Update(letter);
+        }
 
         await _context.SaveChangesAsync();
     }

@@ -33,7 +33,9 @@ public class ConsultationSessionService(
 
         var result = await _validator.ValidateAsync(dto);
         if (!result.IsValid)
+        {
             throw new EntityValidationException(result.Errors.Select(e => e.ErrorMessage));
+        }
 
         var session = new ConsultationSession
         {
@@ -42,6 +44,7 @@ public class ConsultationSessionService(
         };
 
         await _sessionRepo.CreateAsync(session);
+
         return new SessionCreatedResponseDTO(session.Id);
     }
 
@@ -92,7 +95,9 @@ public class ConsultationSessionService(
             await _sessionRepo.AddSegmentsAsync(segmentEntities);
 
             foreach (var seg in segmentEntities)
+            {
                 await _publisher.PublishSegmentAsync(sessionId, seg, ct);
+            }
 
             session.MarkDone();
             await _sessionRepo.UpdateAsync(session);
