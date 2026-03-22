@@ -12,4 +12,7 @@ public interface IUserRepository
     Task<bool> IdentityNumberExistsAsync(string identityNumber);
     Task<(bool Success, IEnumerable<string> Errors)> CreateDoctorAsync(Doctor doctor, string password);
     Task<(bool Success, IEnumerable<string> Errors)> CreatePatientAsync(Patient patient, string password);
+    Task<AppUser?> FindByEmailAsync(string email);
+    Task<bool> CheckPasswordAsync(AppUser user, string password);
+    Task<IEnumerable<string>> GetRolesAsync(AppUser user);
 }

@@ -1,3 +1,4 @@
+using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Service.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -43,12 +44,31 @@ public class UserRepository(AppDbContext context, UserManager<AppUser> userManag
     public async Task<(bool Success, IEnumerable<string> Errors)> CreateDoctorAsync(Doctor doctor, string password)
     {
         var result = await _userManager.CreateAsync(doctor, password);
+        if (result.Succeeded)
+            await _userManager.AddToRoleAsync(doctor, Roles.Doctor);
         return (result.Succeeded, result.Errors.Select(e => e.Description));
     }
 
     public async Task<(bool Success, IEnumerable<string> Errors)> CreatePatientAsync(Patient patient, string password)
     {
         var result = await _userManager.CreateAsync(patient, password);
+        if (result.Succeeded)
+            await _userManager.AddToRoleAsync(patient, Roles.Patient);
         return (result.Succeeded, result.Errors.Select(e => e.Description));
+    }
+
+    public async Task<AppUser?> FindByEmailAsync(string email)
+    {
+        return await _userManager.FindByEmailAsync(email);
+    }
+
+    public async Task<bool> CheckPasswordAsync(AppUser user, string password)
+    {
+        return await _userManager.CheckPasswordAsync(user, password);
+    }
+
+    public async Task<IEnumerable<string>> GetRolesAsync(AppUser user)
+    {
+        return await _userManager.GetRolesAsync(user);
     }
 }

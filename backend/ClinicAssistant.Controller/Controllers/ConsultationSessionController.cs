@@ -1,7 +1,10 @@
+using System.Security.Claims;
 using ClinicAssistant.Controller.Interfaces;
+using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.DTOs;
 using ClinicAssistant.Domain.Enums;
 using log4net;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicAssistant.Controller.Controllers;
@@ -14,7 +17,10 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     private readonly IConsultationSessionService _sessionService = sessionService;
 
     [HttpPost]
+    [Authorize(Roles = Roles.Doctor)]
     [ProducesResponseType(typeof(SessionCreatedResponseDTO), 201)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(422)]
     public async Task<ActionResult> CreateSession([FromBody] SessionPostDTO dto)
     {
@@ -24,27 +30,47 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     }
 
     [HttpGet("{sessionId:guid}")]
+    [Authorize]
     [ProducesResponseType(typeof(SessionDetailResponseDTO), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(404)]
     public async Task<ActionResult> GetSession(Guid sessionId)
     {
         _logger.Info($"Received request to get session={sessionId}");
         var session = await _sessionService.GetSessionAsync(sessionId);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (User.IsInRole(Roles.Patient) && session.PatientId != currentUserId)
+            return Forbid();
+
         return Ok(session);
     }
 
     [HttpGet("{sessionId:guid}/transcript")]
+    [Authorize]
     [ProducesResponseType(typeof(IEnumerable<TranscriptSegmentResponseDTO>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(404)]
     public async Task<ActionResult> GetTranscript(Guid sessionId)
     {
         _logger.Info($"Received request for transcript of session={sessionId}");
+        var session = await _sessionService.GetSessionAsync(sessionId);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (User.IsInRole(Roles.Patient) && session.PatientId != currentUserId)
+            return Forbid();
+
         var segments = await _sessionService.GetTranscriptAsync(sessionId);
         return Ok(segments);
     }
 
     [HttpPatch("{sessionId:guid}/status")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Doctor}")]
     [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(404)]
     [ProducesResponseType(422)]
     public async Task<ActionResult> UpdateStatus(Guid sessionId, [FromBody] SessionStatusPatchDTO dto)
