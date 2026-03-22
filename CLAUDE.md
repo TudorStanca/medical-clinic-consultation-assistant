@@ -91,6 +91,32 @@ MediaRecorder outputs **WebM/Opus**; Whisper.net expects **WAV**. Conversion nee
   private readonly IUploadedDocumentRepository _documentRepo = ...;
   ```
   Same rule applies to record parameters, field declarations, and assignments.
+- **Always use braces** — `if`, `else`, `for`, `while`, `foreach` bodies always use `{}`, even for single-line bodies:
+  ```csharp
+  // WRONG
+  if (x) doSomething();
+  foreach (var item in list) Process(item);
+  // CORRECT
+  if (x)
+  {
+      doSomething();
+  }
+  foreach (var item in list)
+  {
+      Process(item);
+  }
+  ```
+- **Blank line before `return`** — when a `return` statement is preceded by other statements in the same block, always add a blank line immediately before it:
+  ```csharp
+  // WRONG
+  var result = Compute();
+  return result;
+  // CORRECT
+  var result = Compute();
+
+  return result;
+  ```
+  Exception: if `return` is the only statement in the block (e.g., inside an `if` body), no blank line is needed.
 
 ## Frontend Architecture
 
