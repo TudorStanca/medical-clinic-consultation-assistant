@@ -388,3 +388,4 @@ App_Data/
 # Local app secrets (connection strings, API keys)
 appsettings.Local.json
 appsettings.*.local.json
+appsettings.Development.json

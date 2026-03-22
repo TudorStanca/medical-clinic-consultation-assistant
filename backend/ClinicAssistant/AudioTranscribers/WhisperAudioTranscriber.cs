@@ -1,5 +1,6 @@
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Service;
 using ClinicAssistant.Service.Interfaces;
 using log4net;
 using Microsoft.Extensions.Options;
@@ -17,11 +18,11 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
     private readonly WhisperFactory _factory;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    public WhisperAudioTranscriber(IOptions<WhisperSettings> options)
+    public WhisperAudioTranscriber(IOptions<WhisperSettings> options, IOptions<FileStorageSettings> fileStorageOptions)
     {
         _settings = options.Value;
 
-        var modelPath = Path.Combine(AppContext.BaseDirectory, _settings.ModelPath);
+        var modelPath = Path.Combine(AppContext.BaseDirectory, fileStorageOptions.Value.ModelsPath, _settings.ModelFileName);
 
         if (!File.Exists(modelPath))
         {
