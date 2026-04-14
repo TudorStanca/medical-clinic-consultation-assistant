@@ -1,8 +1,9 @@
-using System.Diagnostics;
+using System.Text;
 using ClinicAssistant.AudioTranscribers;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Controller.Middleware;
+using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Domain.Validators;
 using ClinicAssistant.Repository;
@@ -13,8 +14,13 @@ using ClinicAssistant.Service.Mapping;
 using ClinicAssistant.WebSockets;
 using FluentValidation;
 using log4net;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 namespace ClinicAssistant;
 
@@ -36,6 +42,7 @@ public class Program
                 var errors = context.ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage);
+
                 return new UnprocessableEntityObjectResult(new
                 {
                     statusCode = 422,
@@ -47,7 +54,28 @@ public class Program
 
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
+        builder.Services.AddSwaggerGen(options =>
+        {
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                In = ParameterLocation.Header,
+                Description = "Enter your JWT token (without the 'Bearer ' prefix)"
+            });
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                    },
+                    Array.Empty<string>()
+                }
+            });
+        });
 
         builder.Services.AddSignalR();
 
@@ -71,8 +99,9 @@ public class Program
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-        // ASP.NET Core Identity (UserManager for password hashing)
+        // ASP.NET Core Identity
         builder.Services.AddIdentityCore<AppUser>()
+            .AddRoles<IdentityRole>()
             .AddEntityFrameworkStores<AppDbContext>();
 
         // AutoMapper
@@ -88,11 +117,37 @@ public class Program
 
         builder.Services.Configure<WhisperSettings>(builder.Configuration.GetSection("WhisperSettings"));
         builder.Services.Configure<FileStorageSettings>(builder.Configuration.GetSection("FileStorageSettings"));
+        builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+        builder.Services.Configure<AdminSettings>(builder.Configuration.GetSection("AdminSettings"));
 
         var whisperSettings = builder.Configuration
             .GetSection("WhisperSettings")
             .Get<WhisperSettings>()
             ?? throw new InvalidOperationException("WhisperSettings section is missing in appsettings.json.");
+
+        var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
+            ?? throw new InvalidOperationException("JwtSettings missing.");
+
+        // JWT Authentication
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = jwtSettings.Issuer,
+                ValidAudience = jwtSettings.Audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
+                ClockSkew = TimeSpan.Zero
+            };
+        });
 
         // Repositories (Scoped)
         builder.Services.AddScoped<IConsultationSessionRepository, ConsultationSessionRepository>();
@@ -105,6 +160,7 @@ public class Program
         builder.Services.AddScoped<IDoctorService, DoctorService>();
         builder.Services.AddScoped<IPatientService, PatientService>();
         builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
+        builder.Services.AddScoped<IAuthService, AuthService>();
 
         // SignalR publisher (Singleton — stateless)
         builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
@@ -121,6 +177,8 @@ public class Program
 
         var app = builder.Build();
 
+        await SeedAsync(app);
+
         app.UseWebSockets();
 
         app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -133,6 +191,7 @@ public class Program
 
         app.UseCors(AppAllowSpecificOrigins);
 
+        app.UseAuthentication();
         app.UseAuthorization();
 
         app.MapControllers();
@@ -149,5 +208,42 @@ public class Program
         }
 
         await app.RunAsync();
+    }
+
+    private static async Task SeedAsync(WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var adminSettings = scope.ServiceProvider.GetRequiredService<IOptions<AdminSettings>>().Value;
+
+        foreach (var role in new[] { Roles.Doctor, Roles.Patient, Roles.Admin })
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                await roleManager.CreateAsync(new IdentityRole(role));
+            }
+        }
+
+        if (await userManager.FindByEmailAsync(adminSettings.Email) is null)
+        {
+            var admin = new AppUser
+            {
+                UserName = adminSettings.Email,
+                Email = adminSettings.Email,
+                FirstName = adminSettings.FirstName,
+                LastName = adminSettings.LastName,
+                EmailConfirmed = true
+            };
+            var result = await userManager.CreateAsync(admin, adminSettings.Password);
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(admin, Roles.Admin);
+            }
+            else
+            {
+                StartupLog.Warn($"Admin seed failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
+        }
     }
 }

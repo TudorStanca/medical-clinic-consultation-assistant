@@ -12,6 +12,7 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     {
         _context.ConsultationSessions.Add(session);
         await _context.SaveChangesAsync();
+
         return session;
     }
 
@@ -49,7 +50,9 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     public async Task UpdateAsync(ConsultationSession session)
     {
         if (_context.Entry(session).State == EntityState.Detached)
+        {
             _context.ConsultationSessions.Update(session);
+        }
 
         await _context.SaveChangesAsync();
     }

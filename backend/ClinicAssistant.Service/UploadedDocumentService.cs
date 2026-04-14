@@ -37,16 +37,27 @@ public class UploadedDocumentService(
         var uploaderTask = await _userRepo.GetUserByIdAsync(uploadedByUserId);
 
         var errors = new List<string>();
-        if (patientTask == null) errors.Add($"Patient {patientId} not found.");
-        if (uploaderTask == null) errors.Add($"User {uploadedByUserId} not found.");
-        if (errors.Count > 0) throw new EntityValidationException(errors);
+        if (patientTask == null)
+        {
+            errors.Add($"Patient {patientId} not found.");
+        }
+        if (uploaderTask == null)
+        {
+            errors.Add($"User {uploadedByUserId} not found.");
+        }
+        if (errors.Count > 0)
+        {
+            throw new EntityValidationException(errors);
+        }
 
         if (sessionId.HasValue)
         {
             var session = await _sessionRepo.GetByIdAsync(sessionId.Value)
                 ?? throw new NotFoundException($"Session {sessionId.Value} not found.");
             if (session.Status is SessionStatus.Done or SessionStatus.Failed)
+            {
                 throw new EntityValidationException(["Cannot upload documents to a closed session."]);
+            }
         }
 
         var safeFileName = Path.GetFileName(file.FileName);
@@ -90,6 +101,7 @@ public class UploadedDocumentService(
             ?? throw new NotFoundException($"Patient {patientId} not found.");
 
         var docs = await _documentRepo.GetByPatientIdAsync(patientId);
+
         return docs.Select(d => new UploadedDocumentResponseDTO(
             d.Id, d.PatientId, d.SessionId, d.OriginalFileName,
             d.UploadedAt, d.DocumentType.ToString(), d.UploadedByUserId));
@@ -103,7 +115,9 @@ public class UploadedDocumentService(
             ?? throw new NotFoundException($"Document {id} not found.");
 
         if (File.Exists(doc.FilePath))
+        {
             File.Delete(doc.FilePath);
+        }
 
         await _documentRepo.DeleteAsync(id);
     }
@@ -111,17 +125,25 @@ public class UploadedDocumentService(
     private static void ValidateFile(IFormFile file)
     {
         if (file == null || file.Length == 0)
+        {
             throw new EntityValidationException(["No file provided."]);
+        }
 
         if (file.Length > MaxFileSizeBytes)
+        {
             throw new EntityValidationException([$"File exceeds the maximum allowed size of {MaxFileSizeBytes / 1024 / 1024} MB."]);
+        }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!AllowedExtensions.Contains(extension))
+        {
             throw new EntityValidationException([$"File type '{extension}' is not allowed. Allowed: {string.Join(", ", AllowedExtensions)}"]);
+        }
 
         var fileName = Path.GetFileName(file.FileName);
         if (string.IsNullOrWhiteSpace(fileName) || fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
             throw new EntityValidationException(["Invalid file name."]);
+        }
     }
 }
