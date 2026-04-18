@@ -223,6 +223,34 @@ public class Program
         app.Map("/ws/audio/{sessionId:guid}", async (HttpContext ctx, Guid sessionId, IServiceScopeFactory sf) =>
             await AudioWebSocketHandler.HandleAsync(ctx, sessionId, sf));
 
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapPost("/api/dev/sessions/{sessionId:guid}/inject-transcript",
+                async (Guid sessionId, DevInjectTranscriptRequest body, IConsultationSessionRepository sessionRepo) =>
+                {
+                    var session = await sessionRepo.GetByIdAsync(sessionId);
+                    if (session is null)
+                    {
+                        return Results.NotFound(new { message = $"Session {sessionId} not found." });
+                    }
+
+                    var segment = new TranscriptSegment
+                    {
+                        StartMs = 0,
+                        EndMs = 0,
+                        Text = body.Transcript,
+                        SessionId = sessionId
+                    };
+
+                    await sessionRepo.AddSegmentsAsync([segment]);
+                    session.MarkDone();
+                    await sessionRepo.UpdateAsync(session);
+
+                    return Results.NoContent();
+                })
+                .AllowAnonymous();
+        }
+
         if (!whisperSettings.UseStub)
         {
             StartupLog.Info("Initializing Whisper model at startup...");
@@ -270,3 +298,5 @@ public class Program
         }
     }
 }
+
+internal record DevInjectTranscriptRequest(string Transcript);
