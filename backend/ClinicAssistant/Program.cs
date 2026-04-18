@@ -119,6 +119,7 @@ public class Program
         builder.Services.Configure<FileStorageSettings>(builder.Configuration.GetSection("FileStorageSettings"));
         builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
         builder.Services.Configure<AdminSettings>(builder.Configuration.GetSection("AdminSettings"));
+        builder.Services.Configure<LlmSettings>(builder.Configuration.GetSection("LlmSettings"));
 
         var whisperSettings = builder.Configuration
             .GetSection("WhisperSettings")
@@ -127,6 +128,9 @@ public class Program
 
         var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
             ?? throw new InvalidOperationException("JwtSettings missing.");
+
+        var llmSettings = builder.Configuration.GetSection("LlmSettings").Get<LlmSettings>()
+            ?? throw new InvalidOperationException("LlmSettings missing.");
 
         // JWT Authentication
         builder.Services.AddAuthentication(options =>
@@ -161,6 +165,17 @@ public class Program
         builder.Services.AddScoped<IPatientService, PatientService>();
         builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<IMedicalLetterService, MedicalLetterService>();
+
+        // LLM service (Scoped — ClaudeService uses typed HttpClient; Stub is lightweight)
+        if (llmSettings.UseStub)
+        {
+            builder.Services.AddScoped<ILlmService, StubLlmService>();
+        }
+        else
+        {
+            builder.Services.AddHttpClient<ILlmService, ClaudeService>();
+        }
 
         // SignalR publisher (Singleton — stateless)
         builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
