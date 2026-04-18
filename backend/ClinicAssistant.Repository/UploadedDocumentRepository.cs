@@ -28,6 +28,13 @@ public class UploadedDocumentRepository(AppDbContext context) : IUploadedDocumen
         return await _context.UploadedDocuments.FindAsync(id);
     }
 
+    public async Task<IEnumerable<UploadedDocument>> GetBySessionIdAsync(Guid sessionId)
+    {
+        return await _context.UploadedDocuments
+            .Where(d => d.SessionId == sessionId)
+            .ToListAsync();
+    }
+
     public async Task DeleteAsync(Guid id)
     {
         var document = await _context.UploadedDocuments.FindAsync(id);

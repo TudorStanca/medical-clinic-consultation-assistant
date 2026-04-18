@@ -19,5 +19,15 @@
     "Password": "REPLACE_WITH_STRONG_PASSWORD",
     "FirstName": "FIRST_NAME",
     "LastName": "LAST_NAME"
+  },
+  "LlmSettings": {
+    "ApiKey": "REPLACE_WITH_ANTHROPIC_API_KEY",
+    "ModelId": "claude-opus-4-6",
+    "MaxTokens": 2048,
+    "UseStub": true,
+    "FewShotPath": "Assets/LlmFewShot",
+    "SystemPromptPath": "Assets/system-prompt.txt",
+    "ApiUrl": "https://api.anthropic.com/v1/messages",
+    "AnthropicVersion": "2023-06-01"
   }
 }

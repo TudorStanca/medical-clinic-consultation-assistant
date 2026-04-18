@@ -21,6 +21,7 @@ public class MedicalLetterRepository(AppDbContext context) : IMedicalLetterRepos
         return await _context.MedicalLetters
             .Include(l => l.Session).ThenInclude(s => s.Doctor)
             .Include(l => l.Session).ThenInclude(s => s.Patient)
+            .Include(l => l.Documents)
             .FirstOrDefaultAsync(l => l.SessionId == sessionId);
     }
 
@@ -29,6 +30,7 @@ public class MedicalLetterRepository(AppDbContext context) : IMedicalLetterRepos
         return await _context.MedicalLetters
             .Include(l => l.Session).ThenInclude(s => s.Doctor)
             .Include(l => l.Session).ThenInclude(s => s.Patient)
+            .Include(l => l.Documents)
             .FirstOrDefaultAsync(l => l.Id == id);
     }
 

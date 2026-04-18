@@ -79,6 +79,9 @@ public class Program
 
         builder.Services.AddSignalR();
 
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+            ?? throw new InvalidOperationException("AllowedOrigins section is missing in appsettings.json.");
+
         var AppAllowSpecificOrigins = "_appAllowSpecificOrigins";
 
         builder.Services.AddCors(options =>
@@ -86,7 +89,7 @@ public class Program
             options.AddPolicy(name: AppAllowSpecificOrigins, policy =>
             {
                 policy.AllowAnyHeader()
-                      .WithOrigins("http://localhost:5056", "http://localhost:5173")
+                      .WithOrigins(allowedOrigins)
                       .AllowAnyMethod()
                       .AllowCredentials();
             });
@@ -119,6 +122,7 @@ public class Program
         builder.Services.Configure<FileStorageSettings>(builder.Configuration.GetSection("FileStorageSettings"));
         builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
         builder.Services.Configure<AdminSettings>(builder.Configuration.GetSection("AdminSettings"));
+        builder.Services.Configure<LlmSettings>(builder.Configuration.GetSection("LlmSettings"));
 
         var whisperSettings = builder.Configuration
             .GetSection("WhisperSettings")
@@ -127,6 +131,9 @@ public class Program
 
         var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
             ?? throw new InvalidOperationException("JwtSettings missing.");
+
+        var llmSettings = builder.Configuration.GetSection("LlmSettings").Get<LlmSettings>()
+            ?? throw new InvalidOperationException("LlmSettings missing.");
 
         // JWT Authentication
         builder.Services.AddAuthentication(options =>
@@ -161,6 +168,22 @@ public class Program
         builder.Services.AddScoped<IPatientService, PatientService>();
         builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<IMedicalLetterService, MedicalLetterService>();
+
+        // Document text extractors (Singleton — stateless)
+        builder.Services.AddSingleton<IDocumentTextExtractor, TxtDocumentTextExtractor>();
+        builder.Services.AddSingleton<IDocumentTextExtractor, PdfDocumentTextExtractor>();
+        builder.Services.AddSingleton<DocumentTextExtractorResolver>();
+
+        // LLM service (Scoped — ClaudeService uses typed HttpClient; Stub is lightweight)
+        if (llmSettings.UseStub)
+        {
+            builder.Services.AddScoped<ILlmService, StubLlmService>();
+        }
+        else
+        {
+            builder.Services.AddHttpClient<ILlmService, ClaudeService>();
+        }
 
         // SignalR publisher (Singleton — stateless)
         builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
@@ -199,6 +222,34 @@ public class Program
 
         app.Map("/ws/audio/{sessionId:guid}", async (HttpContext ctx, Guid sessionId, IServiceScopeFactory sf) =>
             await AudioWebSocketHandler.HandleAsync(ctx, sessionId, sf));
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapPost("/api/dev/sessions/{sessionId:guid}/inject-transcript",
+                async (Guid sessionId, DevInjectTranscriptRequest body, IConsultationSessionRepository sessionRepo) =>
+                {
+                    var session = await sessionRepo.GetByIdAsync(sessionId);
+                    if (session is null)
+                    {
+                        return Results.NotFound(new { message = $"Session {sessionId} not found." });
+                    }
+
+                    var segment = new TranscriptSegment
+                    {
+                        StartMs = 0,
+                        EndMs = 0,
+                        Text = body.Transcript,
+                        SessionId = sessionId
+                    };
+
+                    await sessionRepo.AddSegmentsAsync([segment]);
+                    session.MarkDone();
+                    await sessionRepo.UpdateAsync(session);
+
+                    return Results.NoContent();
+                })
+                .AllowAnonymous();
+        }
 
         if (!whisperSettings.UseStub)
         {
@@ -247,3 +298,5 @@ public class Program
         }
     }
 }
+
+internal record DevInjectTranscriptRequest(string Transcript);
