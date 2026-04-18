@@ -22,16 +22,14 @@ public class UploadedDocumentService(
     private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
     private readonly FileStorageSettings _fileStorage = fileStorageOptions.Value;
 
-    private static readonly HashSet<string> AllowedExtensions = [".pdf"];
-
-    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+    private static readonly HashSet<string> AllowedExtensions = [".pdf", ".txt"];
 
     public async Task<UploadedDocumentResponseDTO> UploadAsync(IFormFile file, string patientId,
         string uploadedByUserId, DocumentType documentType, Guid? sessionId)
     {
         _logger.Info($"Uploading document for patient {patientId}");
 
-        ValidateFile(file);
+        ValidateFile(file, _fileStorage.MaxUploadFileSizeBytes);
 
         var patientTask = await _userRepo.GetPatientByIdAsync(patientId);
         var uploaderTask = await _userRepo.GetUserByIdAsync(uploadedByUserId);
@@ -54,9 +52,9 @@ public class UploadedDocumentService(
         {
             var session = await _sessionRepo.GetByIdAsync(sessionId.Value)
                 ?? throw new NotFoundException($"Session {sessionId.Value} not found.");
-            if (session.Status is SessionStatus.Done or SessionStatus.Failed)
+            if (session.Status is SessionStatus.Failed)
             {
-                throw new EntityValidationException(["Cannot upload documents to a closed session."]);
+                throw new EntityValidationException(["Cannot upload documents to a failed session."]);
             }
         }
 
@@ -122,16 +120,16 @@ public class UploadedDocumentService(
         await _documentRepo.DeleteAsync(id);
     }
 
-    private static void ValidateFile(IFormFile file)
+    private static void ValidateFile(IFormFile file, long maxFileSizeBytes)
     {
         if (file == null || file.Length == 0)
         {
             throw new EntityValidationException(["No file provided."]);
         }
 
-        if (file.Length > MaxFileSizeBytes)
+        if (file.Length > maxFileSizeBytes)
         {
-            throw new EntityValidationException([$"File exceeds the maximum allowed size of {MaxFileSizeBytes / 1024 / 1024} MB."]);
+            throw new EntityValidationException([$"File exceeds the maximum allowed size of {maxFileSizeBytes / 1024 / 1024} MB."]);
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();

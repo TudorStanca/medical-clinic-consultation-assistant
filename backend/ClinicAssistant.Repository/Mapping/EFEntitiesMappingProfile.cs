@@ -57,7 +57,8 @@ public class EFEntitiesMappingProfile : Profile
                 m.Diagnostic,
                 m.Recomandari,
                 ctx.Mapper.Map<DoctorResponseDTO>(m.Session.Doctor),
-                ctx.Mapper.Map<PatientResponseDTO>(m.Session.Patient)));
+                ctx.Mapper.Map<PatientResponseDTO>(m.Session.Patient),
+                ctx.Mapper.Map<IReadOnlyList<UploadedDocumentResponseDTO>>(m.Documents)));
 
         CreateMap<UploadedDocument, UploadedDocumentResponseDTO>()
             .ConstructUsing(d => new UploadedDocumentResponseDTO(

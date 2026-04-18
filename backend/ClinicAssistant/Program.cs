@@ -79,6 +79,9 @@ public class Program
 
         builder.Services.AddSignalR();
 
+        var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+            ?? throw new InvalidOperationException("AllowedOrigins section is missing in appsettings.json.");
+
         var AppAllowSpecificOrigins = "_appAllowSpecificOrigins";
 
         builder.Services.AddCors(options =>
@@ -86,7 +89,7 @@ public class Program
             options.AddPolicy(name: AppAllowSpecificOrigins, policy =>
             {
                 policy.AllowAnyHeader()
-                      .WithOrigins("http://localhost:5056", "http://localhost:5173")
+                      .WithOrigins(allowedOrigins)
                       .AllowAnyMethod()
                       .AllowCredentials();
             });
@@ -166,6 +169,11 @@ public class Program
         builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IMedicalLetterService, MedicalLetterService>();
+
+        // Document text extractors (Singleton — stateless)
+        builder.Services.AddSingleton<IDocumentTextExtractor, TxtDocumentTextExtractor>();
+        builder.Services.AddSingleton<IDocumentTextExtractor, PdfDocumentTextExtractor>();
+        builder.Services.AddSingleton<DocumentTextExtractorResolver>();
 
         // LLM service (Scoped — ClaudeService uses typed HttpClient; Stub is lightweight)
         if (llmSettings.UseStub)

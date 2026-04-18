@@ -20,5 +20,10 @@ public class MedicalLetter
     private readonly List<UploadedDocument> _documents = [];
     public IReadOnlyList<UploadedDocument> Documents => _documents;
 
+    public void AddDocument(UploadedDocument doc)
+    {
+        _documents.Add(doc);
+    }
+
     public ConsultationSession Session { get; set; } = null!;
 }

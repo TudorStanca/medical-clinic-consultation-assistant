@@ -13,7 +13,9 @@ namespace ClinicAssistant.Service;
 public class MedicalLetterService(
     IMedicalLetterRepository letterRepo,
     IConsultationSessionRepository sessionRepo,
+    IUploadedDocumentRepository documentRepo,
     ILlmService llmService,
+    DocumentTextExtractorResolver extractorResolver,
     IMapper mapper,
     IValidator<MedicalLetterPostDTO> postValidator,
     IValidator<MedicalLetterPutDTO> putValidator) : IMedicalLetterService
@@ -21,7 +23,9 @@ public class MedicalLetterService(
     private readonly ILog _logger = LogManager.GetLogger(typeof(MedicalLetterService));
     private readonly IMedicalLetterRepository _letterRepo = letterRepo;
     private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
+    private readonly IUploadedDocumentRepository _documentRepo = documentRepo;
     private readonly ILlmService _llmService = llmService;
+    private readonly DocumentTextExtractorResolver _extractorResolver = extractorResolver;
     private readonly IMapper _mapper = mapper;
     private readonly IValidator<MedicalLetterPostDTO> _postValidator = postValidator;
     private readonly IValidator<MedicalLetterPutDTO> _putValidator = putValidator;
@@ -55,7 +59,24 @@ public class MedicalLetterService(
         }
 
         var transcript = string.Join(" ", session.Segments.Select(s => s.Text));
-        var content = await _llmService.GenerateLetterAsync(transcript, dto.LetterType, ct);
+
+        var sessionDocs = (await _documentRepo.GetBySessionIdAsync(dto.SessionId)).ToList();
+
+        var contextTexts = new List<string>();
+        foreach (var doc in sessionDocs)
+        {
+            var ext = Path.GetExtension(doc.FilePath).ToLowerInvariant();
+            var extractor = _extractorResolver.Resolve(ext);
+            if (extractor != null)
+            {
+                var text = await extractor.ExtractTextAsync(doc.FilePath, ct);
+                contextTexts.Add(text);
+            }
+        }
+
+        _logger.Info($"Loaded {sessionDocs.Count} session document(s), extracted text from {contextTexts.Count}.");
+
+        var content = await _llmService.GenerateLetterAsync(transcript, dto.LetterType, contextTexts, ct);
 
         var letter = new MedicalLetter
         {
@@ -71,6 +92,16 @@ public class MedicalLetterService(
         };
 
         await _letterRepo.CreateAsync(letter);
+
+        foreach (var doc in sessionDocs)
+        {
+            letter.AddDocument(doc);
+        }
+
+        if (sessionDocs.Count > 0)
+        {
+            await _letterRepo.UpdateAsync(letter);
+        }
 
         var created = await _letterRepo.GetByIdAsync(letter.Id)
             ?? throw new InvalidOperationException($"Failed to retrieve created letter {letter.Id}.");

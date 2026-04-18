@@ -8,7 +8,7 @@ public class StubLlmService : ILlmService
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(StubLlmService));
 
-    public Task<MedicalLetterContentDTO> GenerateLetterAsync(string transcript, string letterType, CancellationToken ct)
+    public Task<MedicalLetterContentDTO> GenerateLetterAsync(string transcript, string letterType, IReadOnlyList<string> contextDocuments, CancellationToken ct)
     {
         _logger.Info($"[STUB] Generating letter of type '{letterType}' for transcript of length {transcript.Length}.");
 

@@ -14,4 +14,5 @@ public record MedicalLetterResponseDTO(
     string? Diagnostic,
     string? Recomandari,
     DoctorResponseDTO Doctor,
-    PatientResponseDTO Patient);
+    PatientResponseDTO Patient,
+    IReadOnlyList<UploadedDocumentResponseDTO> Documents);
