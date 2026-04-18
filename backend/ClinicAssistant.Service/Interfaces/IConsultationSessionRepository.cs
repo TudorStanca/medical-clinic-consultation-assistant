@@ -9,6 +9,7 @@ public interface IConsultationSessionRepository
     Task<bool> ExistsAsync(Guid id);
     Task<IEnumerable<ConsultationSession>> GetAllByDoctorAsync(string doctorId);
     Task<IEnumerable<ConsultationSession>> GetAllByPatientAsync(string patientId);
+    Task<IEnumerable<ConsultationSession>> GetAllAsync();
     Task UpdateAsync(ConsultationSession session);
     Task AddSegmentsAsync(IEnumerable<TranscriptSegment> segments);
 }

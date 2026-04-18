@@ -1,5 +1,27 @@
+import type { SessionStatusName } from "@/shared/types/enums";
+
 export interface SessionCreatedResponse {
   sessionId: string;
+}
+
+export interface SessionDetailResponse {
+  sessionId: string;
+  status: SessionStatusName;
+  segmentCount: number;
+  doctorId: string;
+  patientId: string;
+  createdAt: string;
+}
+
+export interface SessionSummaryResponse {
+  sessionId: string;
+  status: SessionStatusName;
+  createdAt: string;
+  doctorId: string;
+  doctorFullName: string;
+  patientId: string;
+  patientFullName: string;
+  hasLetter: boolean;
 }
 
 export interface TranscriptSegment {
@@ -10,5 +32,5 @@ export interface TranscriptSegment {
 
 export interface SessionStatusEvent {
   sessionId: string;
-  status: string;
+  status: SessionStatusName;
 }

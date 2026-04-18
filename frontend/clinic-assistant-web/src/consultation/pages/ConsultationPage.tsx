@@ -1,42 +1,83 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Button, Chip, Paper, Typography } from "@mui/material";
-import useTranscriptionApi from "../useTranscriptionApi";
-import useTranscriptionHub from "../useTranscriptionHub";
-import useAudioWebSocket from "../useAudioWebSocket";
-import type { SessionStatusEvent, TranscriptSegment } from "../props";
-
-const formatMs = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
-};
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Divider,
+  Grid,
+  Paper,
+  Typography,
+} from "@mui/material";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import useConsultationApi from "@/consultation/useConsultationApi";
+import useAudioWebSocket from "@/consultation/useAudioWebSocket";
+import useTranscriptionHub from "@/consultation/useTranscriptionHub";
+import TranscriptView from "@/consultation/components/TranscriptView";
+import RecordingControls from "@/consultation/components/RecordingControls";
+import DocumentsPanel from "@/documents/components/DocumentsPanel";
+import GenerateLetterDialog from "@/medicalLetter/components/GenerateLetterDialog";
+import MedicalLetterForm from "@/medicalLetter/components/MedicalLetterForm";
+import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
+import ErrorBanner from "@/shared/components/ErrorBanner";
+import { extractErrorMessages } from "@/core/errorMessages";
+import useAuth from "@/auth/useAuth";
+import { Roles } from "@/shared/types/enums";
+import type { SessionStatusName } from "@/shared/types/enums";
+import type { TranscriptSegment, SessionStatusEvent } from "@/consultation/props";
+import type { MedicalLetterResponseDTO } from "@/medicalLetter/props";
 
 const ConsultationPage = () => {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [recording, setRecording] = useState(false);
-  const [status, setStatus] = useState<string>("Idle");
-  const [segments, setSegments] = useState<TranscriptSegment[]>([]);
-
-  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
-
-  const { createSession } = useTranscriptionApi();
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const { getSessionById, getTranscript, patchStatus } = useConsultationApi();
+  const { getLetterBySessionId } = useMedicalLetterApi();
   const { startStreaming, stopStreaming } = useAudioWebSocket();
+  const { hasRole } = useAuth();
+
+  const [status, setStatus] = useState<SessionStatusName>("Created");
+  const [patientId, setPatientId] = useState<string>("");
+  const [recording, setRecording] = useState(false);
+  const [segments, setSegments] = useState<TranscriptSegment[]>([]);
+  const [isPreview, setIsPreview] = useState(false);
+  const [letter, setLetter] = useState<MedicalLetterResponseDTO | null>(null);
+  const [letterLoaded, setLetterLoaded] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  const isDoctor = hasRole(Roles.Doctor);
 
   const handleSegment = useCallback((segment: TranscriptSegment) => {
     setSegments((prev) => [...prev, segment]);
+    setIsPreview(true);
   }, []);
 
   const handleStatus = useCallback(
-    (event: SessionStatusEvent) => {
+    async (event: SessionStatusEvent) => {
       setStatus(event.status);
       if ((event.status === "Done" || event.status === "Failed") && sessionId) {
         disconnect(sessionId);
+        setRecording(false);
+        if (event.status === "Done") {
+          try {
+            const canonical = await getTranscript(sessionId);
+            setSegments(canonical);
+            setIsPreview(false);
+          } catch {
+            // keep preview on error
+          }
+          try {
+            const existingLetter = await getLetterBySessionId(sessionId);
+            setLetter(existingLetter);
+            setLetterLoaded(true);
+          } catch {
+            setLetterLoaded(true);
+          }
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sessionId]
+    [sessionId, getTranscript, getLetterBySessionId]
   );
 
   const { connect, disconnect } = useTranscriptionHub({
@@ -45,126 +86,135 @@ const ConsultationPage = () => {
   });
 
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [segments]);
+    if (!sessionId) {
+      return;
+    }
+    const init = async () => {
+      setLoading(true);
+      setErrors([]);
+      try {
+        const session = await getSessionById(sessionId);
+        setStatus(session.status);
+        setPatientId(session.patientId);
+
+        if (session.status === "Done" || session.status === "Failed") {
+          if (session.segmentCount > 0) {
+            const segs = await getTranscript(sessionId);
+            setSegments(segs);
+            setIsPreview(false);
+          }
+          const existingLetter = await getLetterBySessionId(sessionId);
+          setLetter(existingLetter);
+          setLetterLoaded(true);
+        }
+      } catch (err) {
+        setErrors(extractErrorMessages(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+  }, [sessionId, getSessionById, getTranscript, getLetterBySessionId]);
 
   const handleStart = async () => {
-    const { sessionId: id } = await createSession();
-    setSessionId(id);
-    setSegments([]);
-    setStatus("Recording");
-
-    await connect(id);
-    await startStreaming(id);
-
-    setRecording(true);
+    if (!sessionId) {
+      return;
+    }
+    setErrors([]);
+    try {
+      await connect(sessionId);
+      await startStreaming(sessionId);
+      await patchStatus(sessionId, "Recording");
+      setStatus("Recording");
+      setRecording(true);
+      setIsPreview(true);
+    } catch (err) {
+      setErrors(extractErrorMessages(err));
+    }
   };
 
   const handleStop = () => {
     stopStreaming();
-    setRecording(false);
-    setStatus("Transcribing");
-    // Backend finalizes async; SignalR will push status "Done"/"Failed"
-    // disconnect happens in handleStatus when Done/Failed arrives
+    setStatus("Processing");
   };
 
+  const handleLetterGenerated = (generated: MedicalLetterResponseDTO) => {
+    setLetter(generated);
+    setLetterLoaded(true);
+    setGenerateOpen(false);
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 6 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        backgroundColor: "#f5f5f5",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        p: 3,
-      }}
-    >
-      <Paper elevation={3} sx={{ p: 4, maxWidth: 700, width: "100%" }}>
-        <Typography variant="h5" fontWeight="bold" gutterBottom>
-          Consultation Recording
-        </Typography>
-        {sessionId && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Session: {sessionId}
-          </Typography>
-        )}
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-          <Chip
-            label={`Status: ${status}`}
-            variant="outlined"
-            color={
-              recording ? "error" : status === "Done" ? "success" : status === "Transcribing" ? "warning" : "default"
-            }
-          />
-          {recording && (
-            <Box
-              sx={{
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                backgroundColor: "error.main",
-                "@keyframes pulse": {
-                  "0%, 100%": { opacity: 1 },
-                  "50%": { opacity: 0.2 },
-                },
-                animation: "pulse 1.2s ease-in-out infinite",
-              }}
+    <Box>
+      <ErrorBanner messages={errors} />
+      <Typography variant="h6" mb={2}>
+        Consultație — {sessionId}
+      </Typography>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 7 }}>
+          <Paper sx={{ p: 2 }}>
+            <RecordingControls
+              status={status}
+              recording={recording}
+              onStart={handleStart}
+              onStop={handleStop}
             />
-          )}
-        </Box>
-
-        <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-          <Button
-            variant="contained"
-            color="primary"
-            size="large"
-            disabled={recording}
-            onClick={handleStart}
-            sx={{ minWidth: 160 }}
-          >
-            Start Recording
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            size="large"
-            disabled={!recording}
-            onClick={handleStop}
-            sx={{ minWidth: 160 }}
-          >
-            Stop Recording
-          </Button>
-        </Box>
-
-        <Paper
-          variant="outlined"
-          sx={{
-            minHeight: 200,
-            maxHeight: 400,
-            overflowY: "auto",
-            p: 2,
-            fontFamily: "monospace",
-            fontSize: 14,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {segments.length === 0 ? (
-            <Typography color="text.secondary" sx={{ fontStyle: "italic" }}>
-              Transcript will appear here...
+            <TranscriptView segments={segments} isPreview={isPreview} />
+          </Paper>
+        </Grid>
+        <Grid size={{ xs: 12, md: 5 }}>
+          <Paper sx={{ p: 2, mb: 2 }}>
+            {isDoctor && patientId && (
+              <DocumentsPanel patientId={patientId} sessionId={sessionId ?? null} />
+            )}
+          </Paper>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="subtitle1" mb={1}>
+              Scrisoare medicală
             </Typography>
-          ) : (
-            segments.map((seg, i) => (
-              <Box key={i} sx={{ mb: 0.5 }}>
-                [{formatMs(seg.startMs)}] {seg.text}
-              </Box>
-            ))
-          )}
-          <div ref={transcriptEndRef} />
-        </Paper>
-      </Paper>
+            <Divider sx={{ mb: 2 }} />
+            {!letterLoaded && status !== "Done" ? (
+              <Typography variant="body2" color="text.secondary">
+                Disponibil după finalizarea sesiunii.
+              </Typography>
+            ) : !letter && status === "Done" && isDoctor ? (
+              <Button
+                variant="contained"
+                startIcon={<AutoFixHighIcon />}
+                onClick={() => setGenerateOpen(true)}
+              >
+                Generează scrisoare
+              </Button>
+            ) : letter ? (
+              <MedicalLetterForm
+                letter={letter}
+                readOnly={!isDoctor}
+                onSaved={(updated) => setLetter(updated)}
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Nicio scrisoare medicală.
+              </Typography>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+      {sessionId && (
+        <GenerateLetterDialog
+          open={generateOpen}
+          sessionId={sessionId}
+          onGenerated={handleLetterGenerated}
+          onClose={() => setGenerateOpen(false)}
+        />
+      )}
     </Box>
   );
 };

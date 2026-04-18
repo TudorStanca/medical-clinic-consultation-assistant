@@ -1,17 +1,8 @@
-import axios, { type AxiosInstance } from "axios";
-import { useMemo } from "react";
+import apiClient from "@/core/api";
+import type { AxiosInstance } from "axios";
 
 const useApiClient = (): { axios: AxiosInstance } => {
-  const instance = useMemo(
-    () =>
-      axios.create({
-        baseURL: "/",
-        headers: { "Content-Type": "application/json" },
-      }),
-    []
-  );
-
-  return { axios: instance };
+  return { axios: apiClient };
 };
 
 export default useApiClient;

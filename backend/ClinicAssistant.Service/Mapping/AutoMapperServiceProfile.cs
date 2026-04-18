@@ -14,7 +14,8 @@ public class AutoMapperServiceProfile : Profile
 
         CreateMap<PatientPostDTO, Patient>()
             .ForMember(p => p.UserName, opt => opt.MapFrom(src => src.Email))
-            .ForMember(p => p.PasswordHash, opt => opt.Ignore());
+            .ForMember(p => p.PasswordHash, opt => opt.Ignore())
+            .ForMember(p => p.BirthDate, opt => opt.MapFrom(src => DateTime.SpecifyKind(src.BirthDate, DateTimeKind.Utc)));
 
         CreateMap<MedicalLetterPutDTO, MedicalLetter>()
             .ForMember(m => m.WrittenAt, opt => opt.Ignore())

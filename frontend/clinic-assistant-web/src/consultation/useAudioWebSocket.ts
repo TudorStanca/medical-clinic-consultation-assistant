@@ -19,7 +19,8 @@ const useAudioWebSocket = () => {
     const workletNode = new AudioWorkletNode(audioContext, "pcm-processor");
     workletNodeRef.current = workletNode;
 
-    const ws = new WebSocket(`ws://${location.host}/ws/audio/${sessionId}`);
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${proto}//${location.host}/ws/audio/${sessionId}`);
     wsRef.current = ws;
 
     await new Promise<void>((resolve, reject) => {
@@ -33,8 +34,10 @@ const useAudioWebSocket = () => {
       }
     };
 
+    // Connect to a silent destination to avoid mic feedback through speakers
+    const silentDest = audioContext.createMediaStreamDestination();
     source.connect(workletNode);
-    workletNode.connect(audioContext.destination);
+    workletNode.connect(silentDest);
   };
 
   const stopStreaming = () => {

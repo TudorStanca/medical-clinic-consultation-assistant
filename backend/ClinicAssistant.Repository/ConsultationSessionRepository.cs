@@ -34,7 +34,9 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     public async Task<IEnumerable<ConsultationSession>> GetAllByDoctorAsync(string doctorId)
     {
         return await _context.ConsultationSessions
+            .Include(s => s.Doctor)
             .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
             .Where(s => s.DoctorId == doctorId)
             .ToListAsync();
     }
@@ -43,7 +45,18 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     {
         return await _context.ConsultationSessions
             .Include(s => s.Doctor)
+            .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
             .Where(s => s.PatientId == patientId)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<ConsultationSession>> GetAllAsync()
+    {
+        return await _context.ConsultationSessions
+            .Include(s => s.Doctor)
+            .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
             .ToListAsync();
     }
 

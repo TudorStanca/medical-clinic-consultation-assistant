@@ -1,7 +1,7 @@
-import ConsultationPage from "@/consultation/pages/ConsultationPage";
+import AppRoutes from "@/AppRoutes";
 
 function App() {
-  return <ConsultationPage />;
+  return <AppRoutes />;
 }
 
 export default App;

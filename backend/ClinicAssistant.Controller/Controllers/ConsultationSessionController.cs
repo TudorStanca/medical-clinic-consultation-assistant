@@ -16,6 +16,20 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     private readonly ILog _logger = LogManager.GetLogger(typeof(ConsultationSessionController));
     private readonly IConsultationSessionService _sessionService = sessionService;
 
+    [HttpGet]
+    [Authorize]
+    [ProducesResponseType(typeof(IEnumerable<SessionSummaryResponseDTO>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult> GetSessions()
+    {
+        _logger.Info("Received request to get sessions for current user.");
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value);
+        var sessions = await _sessionService.GetSessionsForUserAsync(userId, roles);
+
+        return Ok(sessions);
+    }
+
     [HttpPost]
     [Authorize(Roles = Roles.Doctor)]
     [ProducesResponseType(typeof(SessionCreatedResponseDTO), 201)]

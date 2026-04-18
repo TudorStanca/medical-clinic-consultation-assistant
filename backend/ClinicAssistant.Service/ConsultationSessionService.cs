@@ -1,5 +1,6 @@
 using AutoMapper;
 using ClinicAssistant.Controller.Interfaces;
+using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.DTOs;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Domain.Enums;
@@ -54,6 +55,29 @@ public class ConsultationSessionService(
             ?? throw new NotFoundException($"Session {sessionId} not found.");
 
         return _mapper.Map<SessionDetailResponseDTO>(session);
+    }
+
+    public async Task<IEnumerable<SessionSummaryResponseDTO>> GetSessionsForUserAsync(string userId, IEnumerable<string> roles)
+    {
+        _logger.Info($"Getting sessions for user={userId}.");
+
+        var roleList = roles.ToList();
+
+        IEnumerable<ConsultationSession> sessions;
+        if (roleList.Contains(Roles.Admin))
+        {
+            sessions = await _sessionRepo.GetAllAsync();
+        }
+        else if (roleList.Contains(Roles.Doctor))
+        {
+            sessions = await _sessionRepo.GetAllByDoctorAsync(userId);
+        }
+        else
+        {
+            sessions = await _sessionRepo.GetAllByPatientAsync(userId);
+        }
+
+        return sessions.Select(s => _mapper.Map<SessionSummaryResponseDTO>(s));
     }
 
     public async Task<IEnumerable<TranscriptSegmentResponseDTO>> GetTranscriptAsync(Guid sessionId)
