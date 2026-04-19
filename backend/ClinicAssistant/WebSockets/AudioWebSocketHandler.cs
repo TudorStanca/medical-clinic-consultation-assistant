@@ -81,6 +81,10 @@ public static class AudioWebSocketHandler
         }
     }
 
+    private const int BytesPerSecond = 16000 * 2; // 16kHz mono 16-bit PCM
+    private const long OverlapBytes = BytesPerSecond * 1; // 1s overlap at window boundary
+    private const long MinWindowBytes = BytesPerSecond * 3; // skip tick if < 3s of new audio
+
     private static async Task RunPeriodicTranscriptionAsync(
         Guid sessionId,
         string tempPath,
@@ -89,6 +93,7 @@ public static class AudioWebSocketHandler
         CancellationToken ct)
     {
         long lastPublishedEndMs = 0;
+        long lastProcessedByteOffset = 0;
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
 
         try
@@ -99,29 +104,53 @@ public static class AudioWebSocketHandler
                 {
                     await writeStream.FlushAsync(ct);
 
-                    var snapshot = await File.ReadAllBytesAsync(tempPath, ct);
-                    if (snapshot.Length == 0)
+                    var fileLength = writeStream.Length;
+                    var newBytes = fileLength - lastProcessedByteOffset;
+                    if (newBytes < MinWindowBytes)
                     {
                         continue;
+                    }
+
+                    var seekPosition = Math.Max(0L, lastProcessedByteOffset - OverlapBytes);
+                    var windowLength = (int)(fileLength - seekPosition);
+                    var window = new byte[windowLength];
+
+                    await using (var readStream = new FileStream(
+                        tempPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite,
+                        bufferSize: 64 * 1024,
+                        useAsync: true))
+                    {
+                        readStream.Seek(seekPosition, SeekOrigin.Begin);
+                        await readStream.ReadExactlyAsync(window, ct);
                     }
 
                     using var scope = scopeFactory.CreateScope();
                     var transcriber = scope.ServiceProvider.GetRequiredService<IAudioTranscriber>();
                     var publisher = scope.ServiceProvider.GetRequiredService<ITranscriptPublisher>();
 
-                    var segments = await transcriber.TranscribePcmAsync(snapshot, ct);
+                    var rawSegments = await transcriber.TranscribePcmAsync(window, ct);
 
-                    var newSegments = segments.Where(s => s.StartMs >= lastPublishedEndMs).ToList();
-                    foreach (var seg in newSegments)
-                    {
-                        await publisher.PublishSegmentAsync(sessionId, new TranscriptSegment
+                    var offsetMs = seekPosition * 1000 / BytesPerSecond;
+                    var newSegments = rawSegments
+                        .Select(s => new TranscriptSegment
                         {
                             SessionId = sessionId,
-                            StartMs = seg.StartMs,
-                            EndMs = seg.EndMs,
-                            Text = seg.Text
-                        }, ct);
+                            StartMs = s.StartMs + offsetMs,
+                            EndMs = s.EndMs + offsetMs,
+                            Text = s.Text
+                        })
+                        .Where(s => s.StartMs > lastPublishedEndMs)
+                        .ToList();
+
+                    foreach (var seg in newSegments)
+                    {
+                        await publisher.PublishSegmentAsync(sessionId, seg, ct);
                     }
+
+                    lastProcessedByteOffset = fileLength;
 
                     if (newSegments.Count > 0)
                     {

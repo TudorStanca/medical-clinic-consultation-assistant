@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
   Button,
@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import useConsultationApi from "@/consultation/useConsultationApi";
 import useAudioWebSocket from "@/consultation/useAudioWebSocket";
 import useTranscriptionHub from "@/consultation/useTranscriptionHub";
@@ -29,6 +30,7 @@ import type { MedicalLetterResponseDTO } from "@/medicalLetter/props";
 
 const ConsultationPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
   const { getSessionById, getTranscript, patchStatus } = useConsultationApi();
   const { getLetterBySessionId } = useMedicalLetterApi();
   const { startStreaming, stopStreaming } = useAudioWebSocket();
@@ -155,6 +157,13 @@ const ConsultationPage = () => {
   return (
     <Box>
       <ErrorBanner messages={errors} />
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate("/consultations")}
+        sx={{ mb: 1 }}
+      >
+        Listă consultații
+      </Button>
       <Typography variant="h6" mb={2}>
         Consultație — {sessionId}
       </Typography>

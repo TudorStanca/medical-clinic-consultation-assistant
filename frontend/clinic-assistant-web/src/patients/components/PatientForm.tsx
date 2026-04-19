@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -20,9 +20,10 @@ import type { PatientResponseDTO } from "@/patients/props";
 
 interface Props {
   onCreated: (patient: PatientResponseDTO) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-const PatientForm = ({ onCreated }: Props) => {
+const PatientForm = ({ onCreated, onDirtyChange }: Props) => {
   const { createPatient } = usePatientApi();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -37,6 +38,11 @@ const PatientForm = ({ onCreated }: Props) => {
   const [address, setAddress] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [sex, setSex] = useState<SexValue>(Sex.Male);
+
+  useEffect(() => {
+    const dirty = [firstName, lastName, email, phoneNumber, identityNumber, address, birthDate].some((v) => v !== "");
+    onDirtyChange?.(dirty);
+  }, [firstName, lastName, email, phoneNumber, identityNumber, address, birthDate, onDirtyChange]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

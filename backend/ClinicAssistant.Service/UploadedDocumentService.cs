@@ -22,7 +22,11 @@ public class UploadedDocumentService(
     private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
     private readonly FileStorageSettings _fileStorage = fileStorageOptions.Value;
 
-    private static readonly HashSet<string> AllowedExtensions = [".pdf", ".txt"];
+    private static readonly Dictionary<string, string> AllowedExtensionContentTypes = new()
+    {
+        [".pdf"] = "application/pdf",
+        [".txt"] = "text/plain"
+    };
 
     public async Task<UploadedDocumentResponseDTO> UploadAsync(IFormFile file, string patientId,
         string uploadedByUserId, DocumentType documentType, Guid? sessionId)
@@ -105,6 +109,24 @@ public class UploadedDocumentService(
             d.UploadedAt, d.DocumentType.ToString(), d.UploadedByUserId));
     }
 
+    public async Task<(Stream Stream, string ContentType, string FileName)> GetFileAsync(Guid id)
+    {
+        var doc = await _documentRepo.GetByIdAsync(id)
+            ?? throw new NotFoundException($"Document {id} not found.");
+
+        if (!File.Exists(doc.FilePath))
+        {
+            throw new NotFoundException($"File for document {id} not found on disk.");
+        }
+
+        var ext = Path.GetExtension(doc.FilePath).ToLowerInvariant();
+        var contentType = AllowedExtensionContentTypes.GetValueOrDefault(ext, "application/octet-stream");
+
+        var stream = File.OpenRead(doc.FilePath);
+
+        return (stream, contentType, doc.OriginalFileName);
+    }
+
     public async Task DeleteAsync(Guid id)
     {
         _logger.Info($"Deleting document {id}");
@@ -133,9 +155,9 @@ public class UploadedDocumentService(
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!AllowedExtensions.Contains(extension))
+        if (!AllowedExtensionContentTypes.ContainsKey(extension))
         {
-            throw new EntityValidationException([$"File type '{extension}' is not allowed. Allowed: {string.Join(", ", AllowedExtensions)}"]);
+            throw new EntityValidationException([$"File type '{extension}' is not allowed. Allowed: {string.Join(", ", AllowedExtensionContentTypes.Keys)}"]);
         }
 
         var fileName = Path.GetFileName(file.FileName);

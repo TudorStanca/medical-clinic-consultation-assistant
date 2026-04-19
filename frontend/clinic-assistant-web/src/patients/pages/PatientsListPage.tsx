@@ -4,6 +4,11 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Paper,
   Table,
   TableBody,
@@ -15,6 +20,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import usePatientApi from "@/patients/usePatientApi";
+import PatientForm from "@/patients/components/PatientForm";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import type { PatientResponseDTO } from "@/patients/props";
@@ -25,6 +31,23 @@ const PatientsListPage = () => {
   const [patients, setPatients] = useState<PatientResponseDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [formDirty, setFormDirty] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+
+  const handleCloseAdd = () => {
+    if (formDirty) {
+      setConfirmClose(true);
+    } else {
+      setAddOpen(false);
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    setConfirmClose(false);
+    setAddOpen(false);
+    setFormDirty(false);
+  };
 
   const fetchPatients = useCallback(async () => {
     setLoading(true);
@@ -47,7 +70,7 @@ const PatientsListPage = () => {
     <Box>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Typography variant="h5">Pacienți</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/patients/new")}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>
           Adaugă pacient
         </Button>
       </Box>
@@ -92,6 +115,33 @@ const PatientsListPage = () => {
           </Table>
         </TableContainer>
       )}
+      <Dialog open={addOpen} onClose={handleCloseAdd} maxWidth="sm" fullWidth>
+        <DialogTitle>Adaugă pacient nou</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            <PatientForm
+              onDirtyChange={setFormDirty}
+              onCreated={(patient) => {
+                setAddOpen(false);
+                setFormDirty(false);
+                navigate(`/patients/${patient.id}`);
+              }}
+            />
+          </Box>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={confirmClose} onClose={() => setConfirmClose(false)}>
+        <DialogTitle>Renunți la adăugarea pacientului?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Ai date completate în formular. Dacă închizi, acestea se vor pierde.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmClose(false)}>Rămâi</Button>
+          <Button color="error" onClick={handleConfirmDiscard}>Renunță</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

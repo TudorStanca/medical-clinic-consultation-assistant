@@ -118,11 +118,6 @@ public class ConsultationSessionService(
 
             await _sessionRepo.AddSegmentsAsync(segmentEntities);
 
-            foreach (var seg in segmentEntities)
-            {
-                await _publisher.PublishSegmentAsync(sessionId, seg, ct);
-            }
-
             session.MarkDone();
             await _sessionRepo.UpdateAsync(session);
 

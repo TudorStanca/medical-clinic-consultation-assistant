@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import usePatientApi from "@/patients/usePatientApi";
 import DocumentsPanel from "@/documents/components/DocumentsPanel";
 import ErrorBanner from "@/shared/components/ErrorBanner";
@@ -58,6 +59,13 @@ const PatientDetailPage = () => {
   return (
     <Box>
       <ErrorBanner messages={errors} />
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate("/patients")}
+        sx={{ mb: 1 }}
+      >
+        Listă pacienți
+      </Button>
       {patient && (
         <>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>

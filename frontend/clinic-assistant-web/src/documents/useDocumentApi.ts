@@ -49,7 +49,16 @@ const useDocumentApi = () => {
     [axios]
   );
 
-  return { uploadDocument, getDocumentsByPatient, deleteDocument };
+  const openDocumentFile = useCallback(
+    async (id: string): Promise<void> => {
+      const res = await axios.get(`${documentUrl}/${id}/file`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      window.open(url, "_blank");
+    },
+    [axios]
+  );
+
+  return { uploadDocument, getDocumentsByPatient, deleteDocument, openDocumentFile };
 };
 
 export default useDocumentApi;

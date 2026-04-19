@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import useDocumentApi from "@/documents/useDocumentApi";
 import UploadDocumentDialog from "@/documents/components/UploadDocumentDialog";
@@ -26,7 +27,7 @@ interface Props {
 }
 
 const DocumentsPanel = ({ patientId, sessionId }: Props) => {
-  const { getDocumentsByPatient, deleteDocument } = useDocumentApi();
+  const { getDocumentsByPatient, deleteDocument, openDocumentFile } = useDocumentApi();
   const { user, hasRole } = useAuth();
   const [docs, setDocs] = useState<UploadedDocumentResponseDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,11 +95,16 @@ const DocumentsPanel = ({ patientId, sessionId }: Props) => {
               key={doc.id}
               disablePadding
               secondaryAction={
-                canUpload ? (
-                  <IconButton edge="end" size="small" onClick={() => setDeleteTarget(doc.id)}>
-                    <DeleteIcon fontSize="small" />
+                <Box sx={{ display: "flex" }}>
+                  <IconButton size="small" onClick={() => openDocumentFile(doc.id)}>
+                    <OpenInNewIcon fontSize="small" />
                   </IconButton>
-                ) : undefined
+                  {canUpload && (
+                    <IconButton edge="end" size="small" onClick={() => setDeleteTarget(doc.id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
               }
             >
               <ListItemText
