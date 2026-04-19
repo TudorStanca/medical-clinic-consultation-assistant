@@ -48,12 +48,16 @@ public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<
         return _mapper.Map<DoctorResponseDTO>(doctor);
     }
 
-    public async Task<IEnumerable<DoctorResponseDTO>> GetAllAsync()
+    public async Task<PagedResponseDTO<DoctorResponseDTO>> GetPagedAsync(PagedQueryDTO query)
     {
-        _logger.Info("Getting all doctors.");
+        _logger.Info($"Getting paged doctors. Page={query.Page} PageSize={query.PageSize} Search={query.Search}");
 
-        var doctors = await _userRepo.GetAllDoctorsAsync();
+        var (items, total) = await _userRepo.GetDoctorPagedAsync(query.Page, query.PageSize, query.Search, query.SortBy, query.SortDir);
 
-        return doctors.Select(d => _mapper.Map<DoctorResponseDTO>(d));
+        return new PagedResponseDTO<DoctorResponseDTO>(
+            items.Select(d => _mapper.Map<DoctorResponseDTO>(d)),
+            total,
+            query.Page,
+            query.PageSize);
     }
 }

@@ -22,7 +22,13 @@ export function extractErrorMessages(error: unknown): string[] {
     return [data.message];
   }
 
-  if (status === 401) return ["Sesiunea a expirat. Vă rugăm să vă autentificați din nou."];
+  if (status === 401) {
+    if (axiosError.config?.url?.endsWith("/api/auth/login")) {
+      return ["Email sau parolă incorecte."];
+    }
+
+    return ["Sesiunea a expirat. Vă rugăm să vă autentificați din nou."];
+  }
   if (status === 403) return ["Nu aveți permisiunea să efectuați această acțiune."];
   if (status === 404) return ["Resursa solicitată nu a fost găsită."];
 

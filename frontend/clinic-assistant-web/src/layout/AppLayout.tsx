@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
+import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import useAuth from "@/auth/useAuth";
 import { NAV_ITEMS } from "@/layout/NavItems";
 
@@ -61,9 +62,23 @@ const AppLayout = () => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Asistent Consultații
-          </Typography>
+          <Box
+            component={Link}
+            to="/"
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexGrow: 1,
+              color: "inherit",
+              textDecoration: "none",
+            }}
+          >
+            <MedicalServicesIcon />
+            <Typography variant="h6" component="div">
+              MediScribe
+            </Typography>
+          </Box>
           {user && (
             <Typography variant="body2" sx={{ mr: 2 }}>
               {user.firstName} {user.lastName} ({user.roles.join(", ")})

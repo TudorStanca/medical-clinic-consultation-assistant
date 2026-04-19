@@ -6,5 +6,5 @@ public interface IDoctorService
 {
     Task<DoctorResponseDTO> CreateDoctorAsync(DoctorPostDTO dto);
     Task<DoctorResponseDTO> GetByIdAsync(string id);
-    Task<IEnumerable<DoctorResponseDTO>> GetAllAsync();
+    Task<PagedResponseDTO<DoctorResponseDTO>> GetPagedAsync(PagedQueryDTO query);
 }

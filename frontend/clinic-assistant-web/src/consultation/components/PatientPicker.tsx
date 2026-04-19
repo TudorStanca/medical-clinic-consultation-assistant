@@ -53,6 +53,7 @@ const PatientPicker = ({ value, onChange }: Props) => {
         isOptionEqualToValue={(a, b) => a.id === b.id}
         renderInput={(params) => <TextField {...params} label="Selectează pacient" required />}
         noOptionsText="Niciun pacient găsit"
+        slotProps={{ listbox: { sx: { maxHeight: 280 } } }}
       />
       <Button
         variant="outlined"

@@ -72,7 +72,7 @@ const PatientDetailPage = () => {
             <Typography variant="h5">
               {patient.lastName} {patient.firstName}
             </Typography>
-            {(hasRole(Roles.Doctor) || hasRole(Roles.Admin)) && (
+            {hasRole(Roles.Doctor) && (
               <Button
                 variant="contained"
                 startIcon={<AddCircleOutlineIcon />}
@@ -94,7 +94,7 @@ const PatientDetailPage = () => {
           </Paper>
           <Divider sx={{ mb: 2 }} />
           <Typography variant="h6" mb={1}>Documente</Typography>
-          <DocumentsPanel patientId={patient.id} sessionId={null} />
+          <DocumentsPanel patientId={patient.id} sessionId={null} readOnly={!hasRole(Roles.Doctor)} />
         </>
       )}
     </Box>

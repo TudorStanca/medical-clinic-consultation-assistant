@@ -1,47 +1,28 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Box,
-  Button,
-  CircularProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Paper, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import useDoctorApi from "@/doctors/useDoctorApi";
-import ErrorBanner from "@/shared/components/ErrorBanner";
-import { extractErrorMessages } from "@/core/errorMessages";
+import PagedTable from "@/shared/components/PagedTable";
+import type { Column } from "@/shared/components/PagedTable";
 import type { DoctorResponseDTO } from "@/doctors/props";
+import type { PagedQuery } from "@/shared/types/api";
+
+const columns: Column<DoctorResponseDTO>[] = [
+  { key: "lastName", label: "Nume", sortable: true, render: (d) => `${d.lastName} ${d.firstName}` },
+  { key: "email", label: "Email", sortable: true, render: (d) => d.email },
+  { key: "specialization", label: "Specializare", render: (d) => d.specialization },
+  { key: "codParafa", label: "Cod parafă", render: (d) => d.codParafa },
+];
 
 const DoctorsListPage = () => {
-  const { getAllDoctors } = useDoctorApi();
+  const { getDoctorsPaged } = useDoctorApi();
   const navigate = useNavigate();
-  const [doctors, setDoctors] = useState<DoctorResponseDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
 
-  const fetchDoctors = useCallback(async () => {
-    setLoading(true);
-    setErrors([]);
-    try {
-      const data = await getAllDoctors();
-      setDoctors(data);
-    } catch (err) {
-      setErrors(extractErrorMessages(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [getAllDoctors]);
-
-  useEffect(() => {
-    fetchDoctors();
-  }, [fetchDoctors]);
+  const fetchPaged = useCallback(
+    (query: PagedQuery) => getDoctorsPaged(query),
+    [getDoctorsPaged]
+  );
 
   return (
     <Box>
@@ -51,42 +32,17 @@ const DoctorsListPage = () => {
           Adaugă doctor
         </Button>
       </Box>
-      <ErrorBanner messages={errors} />
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <CircularProgress />
+      <Paper>
+        <Box sx={{ p: 2 }}>
+          <PagedTable
+            columns={columns}
+            fetch={fetchPaged}
+            searchPlaceholder="Caută după nume sau email..."
+            defaultSortBy="lastName"
+            rowKey={(d) => d.id}
+          />
         </Box>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nume</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Specializare</TableCell>
-                <TableCell>Cod parafă</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {doctors.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>{d.lastName} {d.firstName}</TableCell>
-                  <TableCell>{d.email}</TableCell>
-                  <TableCell>{d.specialization}</TableCell>
-                  <TableCell>{d.codParafa}</TableCell>
-                </TableRow>
-              ))}
-              {doctors.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ color: "text.secondary" }}>
-                    Niciun doctor înregistrat.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+      </Paper>
     </Box>
   );
 };

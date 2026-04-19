@@ -41,7 +41,7 @@ const LoginPage = () => {
     >
       <Paper sx={{ p: 4, width: 360 }}>
         <Typography variant="h5" mb={3}>
-          Asistent Consultații
+          MediScribe
         </Typography>
         <ErrorBanner messages={errors} />
         <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>

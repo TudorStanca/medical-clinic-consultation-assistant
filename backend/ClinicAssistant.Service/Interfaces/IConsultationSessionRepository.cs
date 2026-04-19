@@ -10,6 +10,7 @@ public interface IConsultationSessionRepository
     Task<IEnumerable<ConsultationSession>> GetAllByDoctorAsync(string doctorId);
     Task<IEnumerable<ConsultationSession>> GetAllByPatientAsync(string patientId);
     Task<IEnumerable<ConsultationSession>> GetAllAsync();
+    Task<(IEnumerable<ConsultationSession> Items, int Total)> GetPagedForUserAsync(string userId, IEnumerable<string> roles, int page, int pageSize, string? search, string? sortBy, string? sortDir);
     Task UpdateAsync(ConsultationSession session);
     Task AddSegmentsAsync(IEnumerable<TranscriptSegment> segments);
 }

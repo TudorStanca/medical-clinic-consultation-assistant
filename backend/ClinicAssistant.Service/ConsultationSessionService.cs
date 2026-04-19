@@ -57,27 +57,17 @@ public class ConsultationSessionService(
         return _mapper.Map<SessionDetailResponseDTO>(session);
     }
 
-    public async Task<IEnumerable<SessionSummaryResponseDTO>> GetSessionsForUserAsync(string userId, IEnumerable<string> roles)
+    public async Task<PagedResponseDTO<SessionSummaryResponseDTO>> GetSessionsPagedForUserAsync(string userId, IEnumerable<string> roles, PagedQueryDTO query)
     {
-        _logger.Info($"Getting sessions for user={userId}.");
+        _logger.Info($"Getting paged sessions for user={userId}. Page={query.Page} PageSize={query.PageSize} Search={query.Search}");
 
-        var roleList = roles.ToList();
+        var (items, total) = await _sessionRepo.GetPagedForUserAsync(userId, roles, query.Page, query.PageSize, query.Search, query.SortBy, query.SortDir);
 
-        IEnumerable<ConsultationSession> sessions;
-        if (roleList.Contains(Roles.Admin))
-        {
-            sessions = await _sessionRepo.GetAllAsync();
-        }
-        else if (roleList.Contains(Roles.Doctor))
-        {
-            sessions = await _sessionRepo.GetAllByDoctorAsync(userId);
-        }
-        else
-        {
-            sessions = await _sessionRepo.GetAllByPatientAsync(userId);
-        }
-
-        return sessions.Select(s => _mapper.Map<SessionSummaryResponseDTO>(s));
+        return new PagedResponseDTO<SessionSummaryResponseDTO>(
+            items.Select(s => _mapper.Map<SessionSummaryResponseDTO>(s)),
+            total,
+            query.Page,
+            query.PageSize);
     }
 
     public async Task<IEnumerable<TranscriptSegmentResponseDTO>> GetTranscriptAsync(Guid sessionId)

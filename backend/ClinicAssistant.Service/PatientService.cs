@@ -53,12 +53,16 @@ public class PatientService(IUserRepository userRepo, IMapper mapper, IValidator
         return _mapper.Map<PatientResponseDTO>(patient);
     }
 
-    public async Task<IEnumerable<PatientResponseDTO>> GetAllAsync()
+    public async Task<PagedResponseDTO<PatientResponseDTO>> GetPagedAsync(PagedQueryDTO query)
     {
-        _logger.Info("Getting all patients.");
+        _logger.Info($"Getting paged patients. Page={query.Page} PageSize={query.PageSize} Search={query.Search}");
 
-        var patients = await _userRepo.GetAllPatientsAsync();
+        var (items, total) = await _userRepo.GetPatientPagedAsync(query.Page, query.PageSize, query.Search, query.SortBy, query.SortDir);
 
-        return patients.Select(p => _mapper.Map<PatientResponseDTO>(p));
+        return new PagedResponseDTO<PatientResponseDTO>(
+            items.Select(p => _mapper.Map<PatientResponseDTO>(p)),
+            total,
+            query.Page,
+            query.PageSize);
     }
 }

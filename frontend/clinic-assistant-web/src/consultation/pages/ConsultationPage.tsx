@@ -38,6 +38,8 @@ const ConsultationPage = () => {
 
   const [status, setStatus] = useState<SessionStatusName>("Created");
   const [patientId, setPatientId] = useState<string>("");
+  const [patientFullName, setPatientFullName] = useState<string>("");
+  const [sessionCreatedAt, setSessionCreatedAt] = useState<string>("");
   const [recording, setRecording] = useState(false);
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [isPreview, setIsPreview] = useState(false);
@@ -98,6 +100,8 @@ const ConsultationPage = () => {
         const session = await getSessionById(sessionId);
         setStatus(session.status);
         setPatientId(session.patientId);
+        setPatientFullName(session.patientFullName);
+        setSessionCreatedAt(session.createdAt);
 
         if (session.status === "Done" || session.status === "Failed") {
           if (session.segmentCount > 0) {
@@ -165,26 +169,28 @@ const ConsultationPage = () => {
         Listă consultații
       </Button>
       <Typography variant="h6" mb={2}>
-        Consultație — {sessionId}
+        {patientFullName
+          ? `Consultație — ${patientFullName} — ${new Date(sessionCreatedAt).toLocaleDateString("ro-RO")}`
+          : `Consultație — ${sessionId}`}
       </Typography>
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 7 }}>
           <Paper sx={{ p: 2 }}>
-            <RecordingControls
-              status={status}
-              recording={recording}
-              onStart={handleStart}
-              onStop={handleStop}
-            />
+            {isDoctor && (
+              <RecordingControls
+                status={status}
+                recording={recording}
+                onStart={handleStart}
+                onStop={handleStop}
+              />
+            )}
             <TranscriptView segments={segments} isPreview={isPreview} />
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 5 }}>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            {isDoctor && patientId && (
-              <DocumentsPanel patientId={patientId} sessionId={sessionId ?? null} />
-            )}
-          </Paper>
+          {patientId && (
+            <DocumentsPanel patientId={patientId} sessionId={sessionId ?? null} readOnly={!isDoctor} />
+          )}
           <Paper sx={{ p: 2 }}>
             <Typography variant="subtitle1" mb={1}>
               Scrisoare medicală

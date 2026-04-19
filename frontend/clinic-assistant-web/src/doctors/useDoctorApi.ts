@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import useApiClient from "@/core/useApiClient";
 import type { DoctorPostDTO, DoctorResponseDTO } from "@/doctors/props";
+import type { PagedQuery, PagedResponse } from "@/shared/types/api";
 
 const doctorUrl = "/api/Doctor";
 
@@ -16,13 +17,16 @@ const useDoctorApi = () => {
     [axios]
   );
 
-  const getAllDoctors = useCallback(async (): Promise<DoctorResponseDTO[]> => {
-    const res = await axios.get<DoctorResponseDTO[]>(doctorUrl);
+  const getDoctorsPaged = useCallback(
+    async (query: PagedQuery): Promise<PagedResponse<DoctorResponseDTO>> => {
+      const res = await axios.get<PagedResponse<DoctorResponseDTO>>(doctorUrl, { params: query });
 
-    return res.data;
-  }, [axios]);
+      return res.data;
+    },
+    [axios]
+  );
 
-  return { createDoctor, getAllDoctors };
+  return { createDoctor, getDoctorsPaged };
 };
 
 export default useDoctorApi;

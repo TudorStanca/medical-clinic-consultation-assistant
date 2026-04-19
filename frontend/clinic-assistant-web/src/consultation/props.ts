@@ -10,6 +10,7 @@ export interface SessionDetailResponse {
   segmentCount: number;
   doctorId: string;
   patientId: string;
+  patientFullName: string;
   createdAt: string;
 }
 

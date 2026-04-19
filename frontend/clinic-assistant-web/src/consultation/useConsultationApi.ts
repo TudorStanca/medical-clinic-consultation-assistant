@@ -8,6 +8,7 @@ import type {
 } from "@/consultation/props";
 import type { SessionStatusName } from "@/shared/types/enums";
 import { SessionStatus } from "@/shared/types/enums";
+import type { PagedQuery, PagedResponse } from "@/shared/types/api";
 
 const sessionUrl = "/api/ConsultationSessions";
 
@@ -41,12 +42,6 @@ const useConsultationApi = () => {
     [axios]
   );
 
-  const getMySessions = useCallback(async (): Promise<SessionSummaryResponse[]> => {
-    const res = await axios.get<SessionSummaryResponse[]>(sessionUrl);
-
-    return res.data;
-  }, [axios]);
-
   const patchStatus = useCallback(
     async (sessionId: string, status: SessionStatusName): Promise<void> => {
       await axios.patch(`${sessionUrl}/${sessionId}/status`, { status: SessionStatus[status] });
@@ -54,7 +49,18 @@ const useConsultationApi = () => {
     [axios]
   );
 
-  return { createSession, getSessionById, getTranscript, getMySessions, patchStatus };
+  const getSessionsPaged = useCallback(
+    async (query: PagedQuery): Promise<PagedResponse<SessionSummaryResponse>> => {
+      const res = await axios.get<PagedResponse<SessionSummaryResponse>>(sessionUrl, {
+        params: query,
+      });
+
+      return res.data;
+    },
+    [axios]
+  );
+
+  return { createSession, getSessionById, getTranscript, patchStatus, getSessionsPaged };
 };
 
 export default useConsultationApi;

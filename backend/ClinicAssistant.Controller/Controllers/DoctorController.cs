@@ -44,14 +44,14 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Doctor}")]
-    [ProducesResponseType(typeof(IEnumerable<DoctorResponseDTO>), 200)]
+    [ProducesResponseType(typeof(PagedResponseDTO<DoctorResponseDTO>), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
-    public async Task<ActionResult> GetAllDoctors()
+    public async Task<ActionResult> GetAllDoctors([FromQuery] PagedQueryDTO query)
     {
-        _logger.Info("Received request to get all doctors.");
-        var doctors = await _doctorService.GetAllAsync();
+        _logger.Info($"Received request to get doctors. Page={query.Page} Search={query.Search}");
+        var result = await _doctorService.GetPagedAsync(query);
 
-        return Ok(doctors);
+        return Ok(result);
     }
 }

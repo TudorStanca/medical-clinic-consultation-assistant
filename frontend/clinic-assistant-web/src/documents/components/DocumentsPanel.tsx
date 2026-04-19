@@ -7,6 +7,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  Paper,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -24,9 +25,10 @@ import type { UploadedDocumentResponseDTO } from "@/documents/props";
 interface Props {
   patientId: string;
   sessionId: string | null;
+  readOnly?: boolean;
 }
 
-const DocumentsPanel = ({ patientId, sessionId }: Props) => {
+const DocumentsPanel = ({ patientId, sessionId, readOnly = false }: Props) => {
   const { getDocumentsByPatient, deleteDocument, openDocumentFile } = useDocumentApi();
   const { user, hasRole } = useAuth();
   const [docs, setDocs] = useState<UploadedDocumentResponseDTO[]>([]);
@@ -35,7 +37,7 @@ const DocumentsPanel = ({ patientId, sessionId }: Props) => {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const canUpload = hasRole(Roles.Doctor) || hasRole(Roles.Admin);
+  const canUpload = !readOnly && (hasRole(Roles.Doctor) || hasRole(Roles.Admin));
 
   const visibleDocs = sessionId ? docs.filter((d) => d.sessionId === sessionId) : docs;
 
@@ -75,8 +77,19 @@ const DocumentsPanel = ({ patientId, sessionId }: Props) => {
     }
   };
 
+  if (!loading && readOnly && visibleDocs.length === 0) {
+    return (
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="subtitle1" mb={1}>Documente atașate</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Niciun document atașat acestei sesiuni.
+        </Typography>
+      </Paper>
+    );
+  }
+
   return (
-    <Box>
+    <Paper sx={{ p: 2, mb: 2 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
         <Typography variant="subtitle1">Documente atașate</Typography>
         {canUpload && (
@@ -138,7 +151,7 @@ const DocumentsPanel = ({ patientId, sessionId }: Props) => {
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeleteTarget(null)}
       />
-    </Box>
+    </Paper>
   );
 };
 

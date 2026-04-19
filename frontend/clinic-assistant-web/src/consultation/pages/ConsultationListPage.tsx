@@ -1,27 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Chip, Paper, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import useConsultationApi from "@/consultation/useConsultationApi";
-import ErrorBanner from "@/shared/components/ErrorBanner";
-import { extractErrorMessages } from "@/core/errorMessages";
+import PagedTable from "@/shared/components/PagedTable";
+import type { Column } from "@/shared/components/PagedTable";
 import useAuth from "@/auth/useAuth";
 import { Roles } from "@/shared/types/enums";
 import type { SessionSummaryResponse } from "@/consultation/props";
 import type { SessionStatusName } from "@/shared/types/enums";
+import type { PagedQuery } from "@/shared/types/api";
 
 const STATUS_COLOR: Record<SessionStatusName, "default" | "primary" | "warning" | "success" | "error"> = {
   Created: "default",
@@ -39,30 +27,35 @@ const STATUS_LABEL: Record<SessionStatusName, string> = {
   Failed: "Eroare",
 };
 
+const columns: Column<SessionSummaryResponse>[] = [
+  {
+    key: "createdAt",
+    label: "Data",
+    sortable: true,
+    render: (s) => new Date(s.createdAt).toLocaleDateString("ro-RO"),
+  },
+  { key: "patientFullName", label: "Pacient", sortable: true, render: (s) => s.patientFullName },
+  { key: "doctorFullName", label: "Doctor", render: (s) => s.doctorFullName },
+  {
+    key: "status",
+    label: "Status",
+    sortable: true,
+    render: (s) => (
+      <Chip label={STATUS_LABEL[s.status]} color={STATUS_COLOR[s.status]} size="small" />
+    ),
+  },
+  { key: "hasLetter", label: "Scrisoare", render: (s) => (s.hasLetter ? "✓" : "—") },
+];
+
 const ConsultationListPage = () => {
-  const { getMySessions } = useConsultationApi();
+  const { getSessionsPaged } = useConsultationApi();
   const { hasRole } = useAuth();
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<SessionSummaryResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
 
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
-    setErrors([]);
-    try {
-      const data = await getMySessions();
-      setSessions(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err) {
-      setErrors(extractErrorMessages(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [getMySessions]);
-
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+  const fetchPaged = useCallback(
+    (query: PagedQuery) => getSessionsPaged(query),
+    [getSessionsPaged]
+  );
 
   return (
     <Box>
@@ -74,56 +67,19 @@ const ConsultationListPage = () => {
           </Button>
         )}
       </Box>
-      <ErrorBanner messages={errors} />
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-          <CircularProgress />
+      <Paper>
+        <Box sx={{ p: 2 }}>
+          <PagedTable
+            columns={columns}
+            fetch={fetchPaged}
+            onRowClick={(s) => navigate(`/consultations/${s.sessionId}`)}
+            searchPlaceholder="Caută după pacient sau doctor..."
+            defaultSortBy="createdAt"
+            defaultSortDir="desc"
+            rowKey={(s) => s.sessionId}
+          />
         </Box>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Data</TableCell>
-                <TableCell>Pacient</TableCell>
-                <TableCell>Doctor</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Scrisoare</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sessions.map((s) => (
-                <TableRow key={s.sessionId}>
-                  <TableCell>{new Date(s.createdAt).toLocaleDateString("ro-RO")}</TableCell>
-                  <TableCell>{s.patientFullName}</TableCell>
-                  <TableCell>{s.doctorFullName}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={STATUS_LABEL[s.status]}
-                      color={STATUS_COLOR[s.status]}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{s.hasLetter ? "✓" : "—"}</TableCell>
-                  <TableCell>
-                    <Button size="small" onClick={() => navigate(`/consultations/${s.sessionId}`)}>
-                      Deschide
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {sessions.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ color: "text.secondary" }}>
-                    Nicio consultație.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+      </Paper>
     </Box>
   );
 };

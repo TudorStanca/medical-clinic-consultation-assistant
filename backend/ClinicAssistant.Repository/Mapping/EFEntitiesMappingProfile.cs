@@ -37,6 +37,7 @@ public class EFEntitiesMappingProfile : Profile
                 s.Segments.Count,
                 s.DoctorId,
                 s.PatientId,
+                $"{s.Patient.FirstName} {s.Patient.LastName}",
                 s.CreatedAt));
 
         CreateMap<ConsultationSession, SessionSummaryResponseDTO>()

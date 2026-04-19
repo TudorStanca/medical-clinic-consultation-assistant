@@ -18,16 +18,16 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
 
     [HttpGet]
     [Authorize]
-    [ProducesResponseType(typeof(IEnumerable<SessionSummaryResponseDTO>), 200)]
+    [ProducesResponseType(typeof(PagedResponseDTO<SessionSummaryResponseDTO>), 200)]
     [ProducesResponseType(401)]
-    public async Task<ActionResult> GetSessions()
+    public async Task<ActionResult> GetSessions([FromQuery] PagedQueryDTO query)
     {
-        _logger.Info("Received request to get sessions for current user.");
+        _logger.Info($"Received request to get sessions. Page={query.Page} Search={query.Search}");
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value);
-        var sessions = await _sessionService.GetSessionsForUserAsync(userId, roles);
+        var result = await _sessionService.GetSessionsPagedForUserAsync(userId, roles, query);
 
-        return Ok(sessions);
+        return Ok(result);
     }
 
     [HttpPost]

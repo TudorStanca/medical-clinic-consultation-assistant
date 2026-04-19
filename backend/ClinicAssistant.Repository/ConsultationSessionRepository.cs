@@ -1,3 +1,4 @@
+using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Service.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +59,48 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
             .Include(s => s.Patient)
             .Include(s => s.MedicalLetter)
             .ToListAsync();
+    }
+
+    public async Task<(IEnumerable<ConsultationSession> Items, int Total)> GetPagedForUserAsync(string userId, IEnumerable<string> roles, int page, int pageSize, string? search, string? sortBy, string? sortDir)
+    {
+        var roleList = roles.ToList();
+        var query = _context.ConsultationSessions
+            .Include(s => s.Doctor)
+            .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
+            .AsQueryable();
+
+        if (roleList.Contains(Roles.Doctor))
+        {
+            query = query.Where(s => s.DoctorId == userId);
+        }
+        else if (roleList.Contains(Roles.Patient))
+        {
+            query = query.Where(s => s.PatientId == userId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            query = query.Where(s =>
+                (s.Patient.FirstName + " " + s.Patient.LastName).ToLower().Contains(term) ||
+                (s.Doctor.FirstName + " " + s.Doctor.LastName).ToLower().Contains(term));
+        }
+
+        var desc = sortDir?.ToLower() == "desc";
+        query = sortBy?.ToLower() switch
+        {
+            "patientfullname" => desc
+                ? query.OrderByDescending(s => s.Patient.LastName).ThenByDescending(s => s.Patient.FirstName)
+                : query.OrderBy(s => s.Patient.LastName).ThenBy(s => s.Patient.FirstName),
+            "status" => desc ? query.OrderByDescending(s => s.Status) : query.OrderBy(s => s.Status),
+            _ => desc ? query.OrderByDescending(s => s.CreatedAt) : query.OrderBy(s => s.CreatedAt),
+        };
+
+        var total = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        return (items, total);
     }
 
     public async Task UpdateAsync(ConsultationSession session)
