@@ -10,7 +10,9 @@ import {
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import LockResetIcon from "@mui/icons-material/LockReset";
 import usePatientApi from "@/patients/usePatientApi";
+import ResetPasswordDialog from "@/auth/components/ResetPasswordDialog";
 import DocumentsPanel from "@/documents/components/DocumentsPanel";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
@@ -27,6 +29,7 @@ const PatientDetailPage = () => {
   const [patient, setPatient] = useState<PatientResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
 
   const fetchPatient = useCallback(async () => {
     if (!id) {
@@ -72,15 +75,27 @@ const PatientDetailPage = () => {
             <Typography variant="h5">
               {patient.lastName} {patient.firstName}
             </Typography>
-            {hasRole(Roles.Doctor) && (
-              <Button
-                variant="contained"
-                startIcon={<AddCircleOutlineIcon />}
-                onClick={() => navigate(`/consultations/new?patientId=${patient.id}`)}
-              >
-                Consultație nouă
-              </Button>
-            )}
+            <Box sx={{ display: "flex", gap: 1 }}>
+              {hasRole(Roles.Admin) && (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<LockResetIcon />}
+                  onClick={() => setResetPasswordOpen(true)}
+                >
+                  Resetează parola
+                </Button>
+              )}
+              {hasRole(Roles.Doctor) && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddCircleOutlineIcon />}
+                  onClick={() => navigate(`/consultations/new?patientId=${patient.id}`)}
+                >
+                  Consultație nouă
+                </Button>
+              )}
+            </Box>
           </Box>
           <Paper sx={{ p: 2, mb: 3 }}>
             <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
@@ -95,6 +110,12 @@ const PatientDetailPage = () => {
           <Divider sx={{ mb: 2 }} />
           <Typography variant="h6" mb={1}>Documente</Typography>
           <DocumentsPanel patientId={patient.id} sessionId={null} readOnly={!hasRole(Roles.Doctor)} />
+          <ResetPasswordDialog
+            open={resetPasswordOpen}
+            onClose={() => setResetPasswordOpen(false)}
+            targetUserId={patient.id}
+            targetUserName={`${patient.firstName} ${patient.lastName}`}
+          />
         </>
       )}
     </Box>

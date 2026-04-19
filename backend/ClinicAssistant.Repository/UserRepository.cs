@@ -132,4 +132,31 @@ public class UserRepository(AppDbContext context, UserManager<AppUser> userManag
     {
         return await _userManager.GetRolesAsync(user);
     }
+
+    public async Task<(bool Success, IEnumerable<string> Errors)> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return (false, ["User not found."]);
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+
+        return (result.Succeeded, result.Errors.Select(e => e.Description));
+    }
+
+    public async Task<(bool Success, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return (false, ["User not found."]);
+        }
+
+        await _userManager.RemovePasswordAsync(user);
+        var result = await _userManager.AddPasswordAsync(user, newPassword);
+
+        return (result.Succeeded, result.Errors.Select(e => e.Description));
+    }
 }

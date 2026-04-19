@@ -17,4 +17,6 @@ public interface IUserRepository
     Task<AppUser?> FindByEmailAsync(string email);
     Task<bool> CheckPasswordAsync(AppUser user, string password);
     Task<IEnumerable<string>> GetRolesAsync(AppUser user);
+    Task<(bool Success, IEnumerable<string> Errors)> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
+    Task<(bool Success, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword);
 }

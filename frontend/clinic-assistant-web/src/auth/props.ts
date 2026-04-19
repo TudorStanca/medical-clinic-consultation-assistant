@@ -17,3 +17,12 @@ export interface AuthUser {
   lastName: string;
   roles: string[];
 }
+
+export interface ChangePasswordRequestDTO {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordDTO {
+  newPassword: string;
+}

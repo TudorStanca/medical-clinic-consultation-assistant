@@ -12,13 +12,17 @@ import {
   ListItemButton,
   ListItemText,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import LogoutIcon from "@mui/icons-material/Logout";
+import LockResetIcon from "@mui/icons-material/LockReset";
 import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import useAuth from "@/auth/useAuth";
+import { Roles } from "@/shared/types/enums";
 import { NAV_ITEMS } from "@/layout/NavItems";
+import ChangePasswordDialog from "@/auth/components/ChangePasswordDialog";
 
 const DRAWER_WIDTH = 220;
 
@@ -26,6 +30,7 @@ const AppLayout = () => {
   const { user, logout, hasRole } = useAuth();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.some(hasRole));
 
@@ -84,6 +89,13 @@ const AppLayout = () => {
               {user.firstName} {user.lastName} ({user.roles.join(", ")})
             </Typography>
           )}
+          {!hasRole(Roles.Admin) && (
+            <Tooltip title="Schimbă parola">
+              <IconButton color="inherit" onClick={() => setChangePasswordOpen(true)}>
+                <LockResetIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           <IconButton color="inherit" onClick={logout} title="Deconectare">
             <LogoutIcon />
           </IconButton>
@@ -117,6 +129,11 @@ const AppLayout = () => {
           <Outlet />
         </Container>
       </Box>
+
+      <ChangePasswordDialog
+        open={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+      />
     </Box>
   );
 };
