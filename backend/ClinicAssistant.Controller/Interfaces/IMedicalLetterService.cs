@@ -8,4 +8,5 @@ public interface IMedicalLetterService
     Task<MedicalLetterResponseDTO> GetByIdAsync(Guid id);
     Task<MedicalLetterResponseDTO> GetBySessionIdAsync(Guid sessionId);
     Task<MedicalLetterResponseDTO> UpdateLetterAsync(Guid id, MedicalLetterPutDTO dto, CancellationToken ct);
+    Task<(byte[] Bytes, string FileName)> GetPdfAsync(Guid id);
 }

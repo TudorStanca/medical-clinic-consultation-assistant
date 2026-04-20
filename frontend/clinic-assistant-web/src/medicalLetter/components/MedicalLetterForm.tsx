@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
@@ -13,8 +14,9 @@ interface Props {
 }
 
 const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
-  const { updateLetter } = useMedicalLetterApi();
+  const { updateLetter, downloadLetterPdf } = useMedicalLetterApi();
   const [loading, setLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
   const [location, setLocation] = useState(letter.location);
@@ -34,6 +36,18 @@ const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
     setDiagnostic(letter.diagnostic ?? "");
     setRecomandari(letter.recomandari ?? "");
   }, [letter]);
+
+  const handleDownloadPdf = async () => {
+    setErrors([]);
+    setPdfLoading(true);
+    try {
+      await downloadLetterPdf(letter.id, `scrisoare-medicala-${letter.id}.pdf`);
+    } catch (err) {
+      setErrors(extractErrorMessages(err));
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     setErrors([]);
@@ -62,17 +76,28 @@ const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
         <Typography variant="subtitle1">
           {letter.letterType} — {letter.location}
         </Typography>
-        {!readOnly && (
+        <Box sx={{ display: "flex", gap: 1 }}>
           <Button
             size="small"
-            variant="contained"
-            startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
-            disabled={loading}
-            onClick={handleSave}
+            variant="outlined"
+            startIcon={pdfLoading ? <CircularProgress size={14} color="inherit" /> : <PictureAsPdfIcon />}
+            disabled={loading || pdfLoading}
+            onClick={handleDownloadPdf}
           >
-            Salvează
+            Descarcă PDF
           </Button>
-        )}
+          {!readOnly && (
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
+              disabled={loading || pdfLoading}
+              onClick={handleSave}
+            >
+              Salvează
+            </Button>
+          )}
+        </Box>
       </Box>
       <ErrorBanner messages={errors} />
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

@@ -42,7 +42,22 @@ const useMedicalLetterApi = () => {
     [axios]
   );
 
-  return { createLetter, getLetterBySessionId, updateLetter };
+  const downloadLetterPdf = useCallback(
+    async (id: string, fileName: string): Promise<void> => {
+      const res = await axios.get(`${letterUrl}/${id}/pdf`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    [axios]
+  );
+
+  return { createLetter, getLetterBySessionId, updateLetter, downloadLetterPdf };
 };
 
 export default useMedicalLetterApi;

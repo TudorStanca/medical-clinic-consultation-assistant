@@ -16,6 +16,7 @@ public class MedicalLetterService(
     IUploadedDocumentRepository documentRepo,
     ILlmService llmService,
     DocumentTextExtractorResolver extractorResolver,
+    MedicalLetterPdfGenerator pdfGenerator,
     IMapper mapper,
     IValidator<MedicalLetterPostDTO> postValidator,
     IValidator<MedicalLetterPutDTO> putValidator) : IMedicalLetterService
@@ -26,6 +27,7 @@ public class MedicalLetterService(
     private readonly IUploadedDocumentRepository _documentRepo = documentRepo;
     private readonly ILlmService _llmService = llmService;
     private readonly DocumentTextExtractorResolver _extractorResolver = extractorResolver;
+    private readonly MedicalLetterPdfGenerator _pdfGenerator = pdfGenerator;
     private readonly IMapper _mapper = mapper;
     private readonly IValidator<MedicalLetterPostDTO> _postValidator = postValidator;
     private readonly IValidator<MedicalLetterPutDTO> _putValidator = putValidator;
@@ -158,5 +160,18 @@ public class MedicalLetterService(
             ?? throw new InvalidOperationException($"Failed to retrieve updated letter {id}.");
 
         return _mapper.Map<MedicalLetterResponseDTO>(updated);
+    }
+
+    public async Task<(byte[] Bytes, string FileName)> GetPdfAsync(Guid id)
+    {
+        _logger.Info($"Generating PDF for medical letter id={id}.");
+
+        var letter = await _letterRepo.GetByIdAsync(id)
+            ?? throw new NotFoundException($"Medical letter {id} not found.");
+
+        var bytes = _pdfGenerator.Generate(letter);
+        var fileName = $"scrisoare-medicala-{letter.WrittenAt:yyyyMMdd}-{letter.Id}.pdf";
+
+        return (bytes, fileName);
     }
 }

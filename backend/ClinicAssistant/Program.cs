@@ -1,5 +1,6 @@
 using System.Text;
 using ClinicAssistant.AudioTranscribers;
+using QuestPDF.Infrastructure;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Controller.Middleware;
@@ -30,6 +31,8 @@ public class Program
 
     public static async Task Main(string[] args)
     {
+        QuestPDF.Settings.License = LicenseType.Community;
+
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
@@ -169,6 +172,7 @@ public class Program
         builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IMedicalLetterService, MedicalLetterService>();
+        builder.Services.AddScoped<MedicalLetterPdfGenerator>();
 
         // Document text extractors (Singleton — stateless)
         builder.Services.AddSingleton<IDocumentTextExtractor, TxtDocumentTextExtractor>();
