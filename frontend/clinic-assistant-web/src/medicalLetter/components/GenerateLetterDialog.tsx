@@ -1,12 +1,15 @@
 import { useState } from "react";
 import {
   Button,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Select,
@@ -30,6 +33,7 @@ const GenerateLetterDialog = ({ open, sessionId, onGenerated, onClose }: Props) 
   const { createLetter } = useMedicalLetterApi();
   const [letterType, setLetterType] = useState(LETTER_TYPES[0]);
   const [location, setLocation] = useState("");
+  const [includeAllDocs, setIncludeAllDocs] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -37,7 +41,7 @@ const GenerateLetterDialog = ({ open, sessionId, onGenerated, onClose }: Props) 
     setErrors([]);
     setLoading(true);
     try {
-      const letter = await createLetter({ sessionId, letterType, location });
+      const letter = await createLetter({ sessionId, letterType, location, includeAllPatientDocuments: includeAllDocs });
       onGenerated(letter);
     } catch (err) {
       setErrors(extractErrorMessages(err));
@@ -68,6 +72,19 @@ const GenerateLetterDialog = ({ open, sessionId, onGenerated, onClose }: Props) 
           fullWidth
           required
         />
+        <FormControl sx={{ mt: 1 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={includeAllDocs}
+                onChange={(e) => setIncludeAllDocs(e.target.checked)}
+                disabled={loading}
+              />
+            }
+            label="Include toate documentele pacientului în contextul scrisorii"
+          />
+          <FormHelperText>Documentele acestei consultații sunt mereu incluse.</FormHelperText>
+        </FormControl>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>

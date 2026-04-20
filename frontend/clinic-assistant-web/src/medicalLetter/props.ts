@@ -6,6 +6,7 @@ export interface MedicalLetterPostDTO {
   sessionId: string;
   letterType: string;
   location: string;
+  includeAllPatientDocuments: boolean;
 }
 
 export interface MedicalLetterPutDTO {

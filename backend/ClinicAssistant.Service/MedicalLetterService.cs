@@ -62,8 +62,17 @@ public class MedicalLetterService(
 
         var sessionDocs = (await _documentRepo.GetBySessionIdAsync(dto.SessionId)).ToList();
 
+        var extraDocs = new List<UploadedDocument>();
+        if (dto.IncludeAllPatientDocuments)
+        {
+            var sessionDocIds = sessionDocs.Select(d => d.Id).ToHashSet();
+            extraDocs = (await _documentRepo.GetByPatientIdAsync(session.PatientId))
+                .Where(d => !sessionDocIds.Contains(d.Id))
+                .ToList();
+        }
+
         var contextTexts = new List<string>();
-        foreach (var doc in sessionDocs)
+        foreach (var doc in sessionDocs.Concat(extraDocs))
         {
             var ext = Path.GetExtension(doc.FilePath).ToLowerInvariant();
             var extractor = _extractorResolver.Resolve(ext);
@@ -74,7 +83,7 @@ public class MedicalLetterService(
             }
         }
 
-        _logger.Info($"Loaded {sessionDocs.Count} session document(s), extracted text from {contextTexts.Count}.");
+        _logger.Info($"Loaded {sessionDocs.Count} session + {extraDocs.Count} patient-wide document(s), extracted text from {contextTexts.Count}.");
 
         var content = await _llmService.GenerateLetterAsync(transcript, dto.LetterType, contextTexts, ct);
 
