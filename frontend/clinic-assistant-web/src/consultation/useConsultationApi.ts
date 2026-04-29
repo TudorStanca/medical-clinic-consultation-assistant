@@ -60,7 +60,14 @@ const useConsultationApi = () => {
     [axios]
   );
 
-  return { createSession, getSessionById, getTranscript, patchStatus, getSessionsPaged };
+  const deleteSession = useCallback(
+    async (sessionId: string): Promise<void> => {
+      await axios.delete(`${sessionUrl}/${sessionId}`);
+    },
+    [axios]
+  );
+
+  return { createSession, getSessionById, getTranscript, patchStatus, getSessionsPaged, deleteSession };
 };
 
 export default useConsultationApi;

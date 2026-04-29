@@ -1,5 +1,6 @@
 using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Domain.Enums;
 using ClinicAssistant.Service.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -116,6 +117,35 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     public async Task AddSegmentsAsync(IEnumerable<TranscriptSegment> segments)
     {
         await _context.TranscriptSegments.AddRangeAsync(segments);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> HasActiveSessionAsync(string doctorId)
+    {
+        return await _context.ConsultationSessions.AnyAsync(s =>
+            s.DoctorId == doctorId &&
+            (s.Status == SessionStatus.Recording || s.Status == SessionStatus.Processing));
+    }
+
+    public async Task<int> MarkActiveAsInterruptedAsync(CancellationToken ct = default)
+    {
+        var sessions = await _context.ConsultationSessions
+            .Where(s => s.Status == SessionStatus.Recording || s.Status == SessionStatus.Processing)
+            .ToListAsync(ct);
+
+        foreach (var session in sessions)
+        {
+            session.MarkInterrupted();
+        }
+
+        await _context.SaveChangesAsync(ct);
+
+        return sessions.Count;
+    }
+
+    public async Task DeleteAsync(ConsultationSession session)
+    {
+        _context.ConsultationSessions.Remove(session);
         await _context.SaveChangesAsync();
     }
 }

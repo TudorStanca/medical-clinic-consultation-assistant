@@ -35,6 +35,7 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     [ProducesResponseType(typeof(SessionCreatedResponseDTO), 201)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
+    [ProducesResponseType(409)]
     [ProducesResponseType(422)]
     public async Task<ActionResult> CreateSession([FromBody] SessionPostDTO dto)
     {
@@ -84,6 +85,22 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
         var segments = await _sessionService.GetTranscriptAsync(sessionId);
 
         return Ok(segments);
+    }
+
+    [HttpDelete("{sessionId:guid}")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(422)]
+    public async Task<ActionResult> DeleteSession(Guid sessionId)
+    {
+        _logger.Info($"Received request to delete session={sessionId}");
+        var doctorId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _sessionService.DeleteSessionAsync(sessionId, doctorId);
+
+        return NoContent();
     }
 
     [HttpPatch("{sessionId:guid}/status")]

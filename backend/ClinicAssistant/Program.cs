@@ -205,6 +205,7 @@ public class Program
         var app = builder.Build();
 
         await SeedAsync(app);
+        await CleanupInterruptedSessionsAsync(app);
 
         app.UseWebSockets();
 
@@ -263,6 +264,17 @@ public class Program
         }
 
         await app.RunAsync();
+    }
+
+    private static async Task CleanupInterruptedSessionsAsync(WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var sessionRepo = scope.ServiceProvider.GetRequiredService<IConsultationSessionRepository>();
+        var count = await sessionRepo.MarkActiveAsInterruptedAsync();
+        if (count > 0)
+        {
+            StartupLog.Warn($"Startup cleanup: marked {count} active session(s) as Interrupted.");
+        }
     }
 
     private static async Task SeedAsync(WebApplication app)

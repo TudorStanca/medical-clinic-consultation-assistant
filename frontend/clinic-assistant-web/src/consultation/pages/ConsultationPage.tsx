@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams, useBlocker } from "react-router-dom";
 import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   Grid,
   Paper,
@@ -23,6 +28,7 @@ import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import useAuth from "@/auth/useAuth";
+import { useRecording } from "@/consultation/RecordingContext";
 import { Roles } from "@/shared/types/enums";
 import type { SessionStatusName } from "@/shared/types/enums";
 import type { TranscriptSegment, SessionStatusEvent } from "@/consultation/props";
@@ -33,7 +39,7 @@ const ConsultationPage = () => {
   const navigate = useNavigate();
   const { getSessionById, getTranscript, patchStatus } = useConsultationApi();
   const { getLetterBySessionId } = useMedicalLetterApi();
-  const { startStreaming, stopStreaming } = useAudioWebSocket();
+  const { startStreaming, stopStreaming, pauseStreaming, resumeStreaming } = useAudioWebSocket();
   const { hasRole } = useAuth();
 
   const [status, setStatus] = useState<SessionStatusName>("Created");
@@ -41,6 +47,7 @@ const ConsultationPage = () => {
   const [patientFullName, setPatientFullName] = useState<string>("");
   const [sessionCreatedAt, setSessionCreatedAt] = useState<string>("");
   const [recording, setRecording] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [isPreview, setIsPreview] = useState(false);
   const [letter, setLetter] = useState<MedicalLetterResponseDTO | null>(null);
@@ -50,6 +57,40 @@ const ConsultationPage = () => {
   const [errors, setErrors] = useState<string[]>([]);
 
   const isDoctor = hasRole(Roles.Doctor);
+  const isActive = recording || paused;
+
+  const { setIsActive: setGlobalIsActive } = useRecording();
+  const isActiveRef = useRef(false);
+  isActiveRef.current = isActive;
+
+  useEffect(() => {
+    setGlobalIsActive(isActive);
+  }, [isActive, setGlobalIsActive]);
+
+  useEffect(() => {
+    return () => {
+      setGlobalIsActive(false);
+      if (isActiveRef.current) {
+        stopStreaming();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const blocker = useBlocker(isActive);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isActive]);
 
   const handleSegment = useCallback((segment: TranscriptSegment) => {
     setSegments((prev) => [...prev, segment]);
@@ -62,6 +103,7 @@ const ConsultationPage = () => {
       if ((event.status === "Done" || event.status === "Failed") && sessionId) {
         disconnect(sessionId);
         setRecording(false);
+        setPaused(false);
         if (event.status === "Done") {
           try {
             const canonical = await getTranscript(sessionId);
@@ -139,8 +181,20 @@ const ConsultationPage = () => {
     }
   };
 
+  const handlePause = async () => {
+    await pauseStreaming();
+    setPaused(true);
+  };
+
+  const handleResume = async () => {
+    await resumeStreaming();
+    setPaused(false);
+  };
+
   const handleStop = () => {
     stopStreaming();
+    setRecording(false);
+    setPaused(false);
     setStatus("Processing");
   };
 
@@ -180,8 +234,11 @@ const ConsultationPage = () => {
               <RecordingControls
                 status={status}
                 recording={recording}
+                paused={paused}
                 onStart={handleStart}
                 onStop={handleStop}
+                onPause={handlePause}
+                onResume={handleResume}
               />
             )}
             <TranscriptView segments={segments} isPreview={isPreview} />
@@ -230,6 +287,21 @@ const ConsultationPage = () => {
           onClose={() => setGenerateOpen(false)}
         />
       )}
+      <Dialog open={blocker.state === "blocked"}>
+        <DialogTitle>Ieși din înregistrare?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Dacă ieși acum, înregistrarea se oprește și consultația va fi salvată cu ce s-a înregistrat până atunci.
+            Continui?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => blocker.reset?.()}>Anulează</Button>
+          <Button color="error" onClick={() => blocker.proceed?.()}>
+            Continuă
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -1,6 +1,8 @@
 import { Box, Button, Chip } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
 import StopIcon from "@mui/icons-material/Stop";
+import PauseCircleIcon from "@mui/icons-material/PauseCircle";
+import PlayCircleIcon from "@mui/icons-material/PlayCircle";
 import type { SessionStatusName } from "@/shared/types/enums";
 
 const STATUS_LABELS: Record<SessionStatusName, string> = {
@@ -9,6 +11,7 @@ const STATUS_LABELS: Record<SessionStatusName, string> = {
   Processing: "Se procesează",
   Done: "Finalizat",
   Failed: "Eroare",
+  Interrupted: "Întreruptă",
 };
 
 const STATUS_COLORS: Record<SessionStatusName, "default" | "primary" | "warning" | "success" | "error"> = {
@@ -17,20 +20,24 @@ const STATUS_COLORS: Record<SessionStatusName, "default" | "primary" | "warning"
   Processing: "warning",
   Done: "success",
   Failed: "error",
+  Interrupted: "warning",
 };
 
 interface Props {
   status: SessionStatusName;
   recording: boolean;
+  paused: boolean;
   onStart: () => void;
   onStop: () => void;
+  onPause: () => void;
+  onResume: () => void;
 }
 
-const RecordingControls = ({ status, recording, onStart, onStop }: Props) => {
-  const isTerminal = status === "Done" || status === "Failed";
+const RecordingControls = ({ status, recording, paused, onStart, onStop, onPause, onResume }: Props) => {
+  const isTerminal = status === "Done" || status === "Failed" || status === "Interrupted" || status === "Processing";
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
       <Chip
         label={STATUS_LABELS[status]}
         color={STATUS_COLORS[status]}
@@ -47,6 +54,14 @@ const RecordingControls = ({ status, recording, onStart, onStop }: Props) => {
             : undefined
         }
       />
+      {paused && (
+        <Chip
+          label="În pauză"
+          color="warning"
+          size="small"
+          icon={<PauseCircleIcon />}
+        />
+      )}
       {!isTerminal && (
         <>
           <Button
@@ -58,6 +73,26 @@ const RecordingControls = ({ status, recording, onStart, onStop }: Props) => {
           >
             Pornire
           </Button>
+          {recording && !paused && (
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<PauseCircleIcon />}
+              onClick={onPause}
+            >
+              Pauză
+            </Button>
+          )}
+          {recording && paused && (
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<PlayCircleIcon />}
+              onClick={onResume}
+            >
+              Continuare
+            </Button>
+          )}
           <Button
             variant="outlined"
             color="error"

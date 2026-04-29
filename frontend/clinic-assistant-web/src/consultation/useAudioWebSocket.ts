@@ -5,6 +5,7 @@ const useAudioWebSocket = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const pausedRef = useRef(false);
 
   const startStreaming = async (sessionId: string) => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -29,6 +30,9 @@ const useAudioWebSocket = () => {
     });
 
     workletNode.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+      if (pausedRef.current) {
+        return;
+      }
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(event.data);
       }
@@ -40,7 +44,23 @@ const useAudioWebSocket = () => {
     workletNode.connect(silentDest);
   };
 
+  const pauseStreaming = async () => {
+    pausedRef.current = true;
+    if (audioContextRef.current?.state === "running") {
+      await audioContextRef.current.suspend();
+    }
+  };
+
+  const resumeStreaming = async () => {
+    if (audioContextRef.current?.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+    pausedRef.current = false;
+  };
+
   const stopStreaming = () => {
+    pausedRef.current = false;
+
     workletNodeRef.current?.disconnect();
     workletNodeRef.current = null;
 
@@ -54,7 +74,7 @@ const useAudioWebSocket = () => {
     wsRef.current = null;
   };
 
-  return { startStreaming, stopStreaming };
+  return { startStreaming, stopStreaming, pauseStreaming, resumeStreaming };
 };
 
 export default useAudioWebSocket;

@@ -38,6 +38,11 @@ public class ConsultationSessionService(
             throw new EntityValidationException(result.Errors.Select(e => e.ErrorMessage));
         }
 
+        if (await _sessionRepo.HasActiveSessionAsync(dto.DoctorId))
+        {
+            throw new ConflictException("Aveți deja o consultație activă. Finalizați-o înainte de a începe alta.");
+        }
+
         var session = new ConsultationSession
         {
             DoctorId = dto.DoctorId,
@@ -123,6 +128,31 @@ public class ConsultationSessionService(
 
             throw;
         }
+    }
+
+    public async Task DeleteSessionAsync(Guid sessionId, string requestingDoctorId)
+    {
+        _logger.Info($"Deleting session {sessionId} requested by Doctor={requestingDoctorId}");
+
+        var session = await _sessionRepo.GetByIdAsync(sessionId)
+            ?? throw new NotFoundException($"Session {sessionId} not found.");
+
+        if (session.DoctorId != requestingDoctorId)
+        {
+            throw new UnauthorizedException("Nu aveți permisiunea de a șterge această consultație.");
+        }
+
+        if (session.Status != SessionStatus.Interrupted && session.Status != SessionStatus.Failed)
+        {
+            throw new EntityValidationException([$"Sesiunea nu poate fi ștearsă deoarece are statusul '{session.Status}'."]);
+        }
+
+        if (session.AudioFilePath is not null && File.Exists(session.AudioFilePath))
+        {
+            File.Delete(session.AudioFilePath);
+        }
+
+        await _sessionRepo.DeleteAsync(session);
     }
 
     public async Task UpdateStatusAsync(Guid sessionId, SessionStatus status)

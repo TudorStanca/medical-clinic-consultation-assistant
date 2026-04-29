@@ -23,6 +23,7 @@ public class ConsultationSession
     public void MarkProcessing() => Status = SessionStatus.Processing;
     public void MarkDone() => Status = SessionStatus.Done;
     public void MarkFailed() => Status = SessionStatus.Failed;
+    public void MarkInterrupted() => Status = SessionStatus.Interrupted;
 
     public void AddSegments(IEnumerable<TranscriptSegment> segments) =>
         _segments.AddRange(segments);

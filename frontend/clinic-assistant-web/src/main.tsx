@@ -1,22 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
-import { AuthProvider } from "@/auth/AuthContext";
+import { createBrowserRouter, createRoutesFromElements, RouterProvider } from "react-router-dom";
 import "./index.css";
-import App from "./App.tsx";
+import routeTree from "./AppRoutes";
 
-const theme = createTheme();
+const router = createBrowserRouter(createRoutesFromElements(routeTree));
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <RouterProvider router={router} />
   </StrictMode>
 );

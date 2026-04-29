@@ -3,7 +3,13 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   AppBar,
   Box,
+  Button,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   Drawer,
   IconButton,
@@ -20,6 +26,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import useAuth from "@/auth/useAuth";
+import { useRecording } from "@/consultation/RecordingContext";
 import { Roles } from "@/shared/types/enums";
 import { NAV_ITEMS } from "@/layout/NavItems";
 import ChangePasswordDialog from "@/auth/components/ChangePasswordDialog";
@@ -28,9 +35,19 @@ const DRAWER_WIDTH = 220;
 
 const AppLayout = () => {
   const { user, logout, hasRole } = useAuth();
+  const { isActive } = useRecording();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+
+  const handleLogoutClick = () => {
+    if (isActive) {
+      setLogoutConfirmOpen(true);
+    } else {
+      logout();
+    }
+  };
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.some(hasRole));
 
@@ -96,7 +113,7 @@ const AppLayout = () => {
               </IconButton>
             </Tooltip>
           )}
-          <IconButton color="inherit" onClick={logout} title="Deconectare">
+          <IconButton color="inherit" onClick={handleLogoutClick} title="Deconectare">
             <LogoutIcon />
           </IconButton>
         </Toolbar>
@@ -134,6 +151,20 @@ const AppLayout = () => {
         open={changePasswordOpen}
         onClose={() => setChangePasswordOpen(false)}
       />
+      <Dialog open={logoutConfirmOpen} onClose={() => setLogoutConfirmOpen(false)}>
+        <DialogTitle>Înregistrare activă</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Ești în mijlocul unei înregistrări active. Dacă te deconectezi acum, înregistrarea va fi oprită și datele audio înregistrate până acum vor fi procesate. Continui?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLogoutConfirmOpen(false)}>Anulează</Button>
+          <Button color="error" onClick={() => { setLogoutConfirmOpen(false); logout(); }}>
+            Deconectează-te
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

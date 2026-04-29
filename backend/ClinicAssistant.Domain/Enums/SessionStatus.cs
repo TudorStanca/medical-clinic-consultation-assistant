@@ -6,5 +6,6 @@ public enum SessionStatus
     Recording = 1,
     Processing = 2,
     Done = 3,
-    Failed = 4
+    Failed = 4,
+    Interrupted = 5
 }

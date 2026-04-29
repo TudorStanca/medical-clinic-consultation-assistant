@@ -15,8 +15,9 @@ export const SessionStatus = {
   Processing: 2,
   Done: 3,
   Failed: 4,
+  Interrupted: 5,
 } as const;
-export type SessionStatusName = "Created" | "Recording" | "Processing" | "Done" | "Failed";
+export type SessionStatusName = "Created" | "Recording" | "Processing" | "Done" | "Failed" | "Interrupted";
 
 export const Roles = {
   Doctor: "Doctor",
