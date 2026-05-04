@@ -159,4 +159,21 @@ public class UserRepository(AppDbContext context, UserManager<AppUser> userManag
 
         return (result.Succeeded, result.Errors.Select(e => e.Description));
     }
+
+    public async Task<(bool Success, IEnumerable<string> Errors)> UpdateProfileAsync(string userId, string firstName, string lastName, string? phoneNumber)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null)
+        {
+            return (false, ["User not found."]);
+        }
+
+        user.FirstName = firstName;
+        user.LastName = lastName;
+        user.PhoneNumber = phoneNumber;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        return (result.Succeeded, result.Errors.Select(e => e.Description));
+    }
 }

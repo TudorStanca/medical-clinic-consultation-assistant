@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.DTOs;
+using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Domain.Exceptions;
 using ClinicAssistant.Service.Interfaces;
 using FluentValidation;
@@ -11,12 +12,13 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace ClinicAssistant.Service;
 
-public class AuthService(IUserRepository userRepository, IOptions<JwtSettings> jwtOptions, IValidator<ChangePasswordRequestDTO> changePasswordValidator, IValidator<ResetPasswordDTO> resetPasswordValidator) : IAuthService
+public class AuthService(IUserRepository userRepository, IOptions<JwtSettings> jwtOptions, IValidator<ChangePasswordRequestDTO> changePasswordValidator, IValidator<ResetPasswordDTO> resetPasswordValidator, IValidator<UpdateProfileRequestDTO> updateProfileValidator) : IAuthService
 {
     private readonly IUserRepository _userRepository = userRepository;
     private readonly JwtSettings _jwtSettings = jwtOptions.Value;
     private readonly IValidator<ChangePasswordRequestDTO> _changePasswordValidator = changePasswordValidator;
     private readonly IValidator<ResetPasswordDTO> _resetPasswordValidator = resetPasswordValidator;
+    private readonly IValidator<UpdateProfileRequestDTO> _updateProfileValidator = updateProfileValidator;
 
     public async Task<LoginResponseDTO> LoginAsync(LoginRequestDTO dto)
     {
@@ -30,7 +32,35 @@ public class AuthService(IUserRepository userRepository, IOptions<JwtSettings> j
         }
 
         var roles = await _userRepository.GetRolesAsync(user);
+        var tokenString = BuildJwtToken(user, roles);
 
+        return new LoginResponseDTO(tokenString, user.Id, user.Email!, roles);
+    }
+
+    public async Task<UpdateProfileResponseDTO> UpdateProfileAsync(string userId, UpdateProfileRequestDTO dto)
+    {
+        var validationResult = await _updateProfileValidator.ValidateAsync(dto);
+        if (!validationResult.IsValid)
+        {
+            throw new EntityValidationException(validationResult.Errors.Select(e => e.ErrorMessage));
+        }
+
+        var (success, errors) = await _userRepository.UpdateProfileAsync(userId, dto.FirstName, dto.LastName, dto.PhoneNumber);
+        if (!success)
+        {
+            throw new EntityValidationException(errors);
+        }
+
+        var user = await _userRepository.GetUserByIdAsync(userId)
+            ?? throw new NotFoundException($"User {userId} not found.");
+        var roles = await _userRepository.GetRolesAsync(user);
+        var tokenString = BuildJwtToken(user, roles);
+
+        return new UpdateProfileResponseDTO(tokenString);
+    }
+
+    private string BuildJwtToken(AppUser user, IEnumerable<string> roles)
+    {
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id),
@@ -50,9 +80,7 @@ public class AuthService(IUserRepository userRepository, IOptions<JwtSettings> j
             expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
             signingCredentials: credentials);
 
-        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
-        return new LoginResponseDTO(tokenString, user.Id, user.Email!, roles);
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     public async Task ChangePasswordAsync(string userId, ChangePasswordRequestDTO dto)

@@ -8,4 +8,5 @@ public interface IMedicalLetterRepository
     Task<MedicalLetter?> GetBySessionIdAsync(Guid sessionId);
     Task<MedicalLetter?> GetByIdAsync(Guid id);
     Task UpdateAsync(MedicalLetter letter);
+    Task<int> CountByDoctorAsync(string doctorId);
 }

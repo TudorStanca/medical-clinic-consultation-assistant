@@ -14,6 +14,7 @@ interface AuthContextValue {
   login: (dto: LoginRequestDTO) => Promise<void>;
   logout: () => void;
   hasRole: (role: string) => boolean;
+  refreshToken: (raw: string) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
@@ -23,6 +24,7 @@ export const AuthContext = createContext<AuthContextValue>({
   login: async () => {},
   logout: () => {},
   hasRole: () => false,
+  refreshToken: () => {},
 });
 
 interface Props {
@@ -105,8 +107,16 @@ export function AuthProvider({ children }: Props) {
 
   const hasRole = useCallback((role: string) => user?.roles.includes(role) ?? false, [user]);
 
+  const refreshToken = useCallback(
+    (raw: string) => {
+      localStorage.setItem(TOKEN_KEY, raw);
+      applyToken(raw);
+    },
+    [applyToken]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, login, logout, hasRole }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, login, logout, hasRole, refreshToken }}>
       {children}
     </AuthContext.Provider>
   );

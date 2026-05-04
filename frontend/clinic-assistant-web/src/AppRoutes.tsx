@@ -13,6 +13,8 @@ const PatientsListPage = lazy(() => import("@/patients/pages/PatientsListPage"))
 const NewPatientPage = lazy(() => import("@/patients/pages/NewPatientPage"));
 const PatientDetailPage = lazy(() => import("@/patients/pages/PatientDetailPage"));
 const DoctorsListPage = lazy(() => import("@/doctors/pages/DoctorsListPage"));
+const DoctorDetailPage = lazy(() => import("@/doctors/pages/DoctorDetailPage"));
+const ProfilePage = lazy(() => import("@/profile/pages/ProfilePage"));
 
 const routeTree = (
   <Route element={<RootLayout />}>
@@ -32,7 +34,9 @@ const routeTree = (
         <Route path="/patients/:id" element={<PatientDetailPage />} />
         <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
           <Route path="/doctors" element={<DoctorsListPage />} />
+          <Route path="/doctors/:id" element={<DoctorDetailPage />} />
         </Route>
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Route>

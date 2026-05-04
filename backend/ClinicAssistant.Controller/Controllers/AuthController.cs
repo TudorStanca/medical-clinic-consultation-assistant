@@ -54,4 +54,18 @@ public class AuthController(IAuthService authService) : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPut("profile")]
+    [Authorize]
+    [ProducesResponseType(typeof(UpdateProfileResponseDTO), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(422)]
+    public async Task<ActionResult> UpdateProfile([FromBody] UpdateProfileRequestDTO dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        _logger.Info($"Received update-profile request for user: {userId}");
+        var response = await _authService.UpdateProfileAsync(userId, dto);
+
+        return Ok(response);
+    }
 }

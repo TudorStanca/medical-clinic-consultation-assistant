@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -27,6 +28,7 @@ const columns: Column<DoctorResponseDTO>[] = [
 
 const DoctorsListPage = () => {
   const { getDoctorsPaged } = useDoctorApi();
+  const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
   const [formDirty, setFormDirty] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -65,6 +67,7 @@ const DoctorsListPage = () => {
             key={refreshKey}
             columns={columns}
             fetch={fetchPaged}
+            onRowClick={(d) => navigate(`/doctors/${d.id}`)}
             searchPlaceholder="Caută după nume sau email..."
             defaultSortBy="lastName"
             rowKey={(d) => d.id}

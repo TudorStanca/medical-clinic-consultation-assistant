@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.DTOs;
@@ -53,5 +54,33 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
         var result = await _doctorService.GetPagedAsync(query);
 
         return Ok(result);
+    }
+
+    [HttpGet("me/stats")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(typeof(DoctorStatsResponseDTO), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<ActionResult> GetMyStats()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        _logger.Info($"Received stats request for doctor: {userId}");
+        var stats = await _doctorService.GetStatsAsync(userId);
+
+        return Ok(stats);
+    }
+
+    [HttpGet("{id}/stats")]
+    [Authorize(Roles = Roles.Admin)]
+    [ProducesResponseType(typeof(DoctorStatsResponseDTO), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> GetDoctorStats(string id)
+    {
+        _logger.Info($"Received stats request for doctor {id} by admin");
+        var stats = await _doctorService.GetStatsAsync(id);
+
+        return Ok(stats);
     }
 }

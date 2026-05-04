@@ -17,6 +17,15 @@ const useDoctorApi = () => {
     [axios]
   );
 
+  const getDoctorById = useCallback(
+    async (id: string): Promise<DoctorResponseDTO> => {
+      const res = await axios.get<DoctorResponseDTO>(`${doctorUrl}/${id}`);
+
+      return res.data;
+    },
+    [axios]
+  );
+
   const getDoctorsPaged = useCallback(
     async (query: PagedQuery): Promise<PagedResponse<DoctorResponseDTO>> => {
       const res = await axios.get<PagedResponse<DoctorResponseDTO>>(doctorUrl, { params: query });
@@ -26,7 +35,7 @@ const useDoctorApi = () => {
     [axios]
   );
 
-  return { createDoctor, getDoctorsPaged };
+  return { createDoctor, getDoctorById, getDoctorsPaged };
 };
 
 export default useDoctorApi;

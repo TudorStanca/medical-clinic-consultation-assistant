@@ -7,4 +7,5 @@ public interface IDoctorService
     Task<DoctorResponseDTO> CreateDoctorAsync(DoctorPostDTO dto);
     Task<DoctorResponseDTO> GetByIdAsync(string id);
     Task<PagedResponseDTO<DoctorResponseDTO>> GetPagedAsync(PagedQueryDTO query);
+    Task<DoctorStatsResponseDTO> GetStatsAsync(string doctorId);
 }

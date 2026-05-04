@@ -148,4 +148,9 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
         _context.ConsultationSessions.Remove(session);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<int> CountByDoctorAsync(string doctorId)
+    {
+        return await _context.ConsultationSessions.CountAsync(s => s.DoctorId == doctorId);
+    }
 }

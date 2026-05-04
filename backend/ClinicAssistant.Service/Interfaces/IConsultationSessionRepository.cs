@@ -16,4 +16,5 @@ public interface IConsultationSessionRepository
     Task<bool> HasActiveSessionAsync(string doctorId);
     Task<int> MarkActiveAsInterruptedAsync(CancellationToken ct = default);
     Task DeleteAsync(ConsultationSession session);
+    Task<int> CountByDoctorAsync(string doctorId);
 }

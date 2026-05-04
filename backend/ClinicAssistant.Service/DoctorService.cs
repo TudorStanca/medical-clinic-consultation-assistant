@@ -9,13 +9,15 @@ using log4net;
 
 namespace ClinicAssistant.Service;
 
-public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<DoctorPostDTO> validator)
+public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<DoctorPostDTO> validator, IConsultationSessionRepository sessionRepo, IMedicalLetterRepository letterRepo)
     : IDoctorService
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(DoctorService));
     private readonly IUserRepository _userRepo = userRepo;
     private readonly IMapper _mapper = mapper;
     private readonly IValidator<DoctorPostDTO> _validator = validator;
+    private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
+    private readonly IMedicalLetterRepository _letterRepo = letterRepo;
 
     public async Task<DoctorResponseDTO> CreateDoctorAsync(DoctorPostDTO dto)
     {
@@ -59,5 +61,15 @@ public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<
             total,
             query.Page,
             query.PageSize);
+    }
+
+    public async Task<DoctorStatsResponseDTO> GetStatsAsync(string doctorId)
+    {
+        _logger.Info($"Getting stats for doctor: {doctorId}");
+
+        var consultationCount = await _sessionRepo.CountByDoctorAsync(doctorId);
+        var letterCount = await _letterRepo.CountByDoctorAsync(doctorId);
+
+        return new DoctorStatsResponseDTO(consultationCount, letterCount);
     }
 }

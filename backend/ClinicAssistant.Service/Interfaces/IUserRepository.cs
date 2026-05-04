@@ -19,4 +19,5 @@ public interface IUserRepository
     Task<IEnumerable<string>> GetRolesAsync(AppUser user);
     Task<(bool Success, IEnumerable<string> Errors)> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
     Task<(bool Success, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword);
+    Task<(bool Success, IEnumerable<string> Errors)> UpdateProfileAsync(string userId, string firstName, string lastName, string? phoneNumber);
 }
