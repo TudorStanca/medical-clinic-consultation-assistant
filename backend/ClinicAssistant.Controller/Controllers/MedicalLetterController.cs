@@ -70,6 +70,28 @@ public class MedicalLetterController(IMedicalLetterService letterService) : Cont
         return Ok(letter);
     }
 
+    [HttpGet("{id:guid}/pdf")]
+    [Authorize]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> GetPdf(Guid id)
+    {
+        _logger.Info($"Received request to download PDF for medical letter id={id}.");
+        var letter = await _letterService.GetByIdAsync(id);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (User.IsInRole(Roles.Patient) && letter.Patient.Id != currentUserId)
+        {
+            return Forbid();
+        }
+
+        var (bytes, fileName) = await _letterService.GetPdfAsync(id);
+
+        return File(bytes, "application/pdf", fileName);
+    }
+
     [HttpPut("{id:guid}")]
     [Authorize(Roles = Roles.Doctor)]
     [ProducesResponseType(typeof(MedicalLetterResponseDTO), 200)]

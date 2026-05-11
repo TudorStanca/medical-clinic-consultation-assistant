@@ -16,11 +16,26 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     private readonly ILog _logger = LogManager.GetLogger(typeof(ConsultationSessionController));
     private readonly IConsultationSessionService _sessionService = sessionService;
 
+    [HttpGet]
+    [Authorize]
+    [ProducesResponseType(typeof(PagedResponseDTO<SessionSummaryResponseDTO>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult> GetSessions([FromQuery] PagedQueryDTO query)
+    {
+        _logger.Info($"Received request to get sessions. Page={query.Page} Search={query.Search}");
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value);
+        var result = await _sessionService.GetSessionsPagedForUserAsync(userId, roles, query);
+
+        return Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = Roles.Doctor)]
     [ProducesResponseType(typeof(SessionCreatedResponseDTO), 201)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
+    [ProducesResponseType(409)]
     [ProducesResponseType(422)]
     public async Task<ActionResult> CreateSession([FromBody] SessionPostDTO dto)
     {
@@ -70,6 +85,22 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
         var segments = await _sessionService.GetTranscriptAsync(sessionId);
 
         return Ok(segments);
+    }
+
+    [HttpDelete("{sessionId:guid}")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(422)]
+    public async Task<ActionResult> DeleteSession(Guid sessionId)
+    {
+        _logger.Info($"Received request to delete session={sessionId}");
+        var doctorId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _sessionService.DeleteSessionAsync(sessionId, doctorId);
+
+        return NoContent();
     }
 
     [HttpPatch("{sessionId:guid}/status")]

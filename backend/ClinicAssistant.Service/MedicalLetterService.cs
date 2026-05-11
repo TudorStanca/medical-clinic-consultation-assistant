@@ -16,6 +16,7 @@ public class MedicalLetterService(
     IUploadedDocumentRepository documentRepo,
     ILlmService llmService,
     DocumentTextExtractorResolver extractorResolver,
+    MedicalLetterPdfGenerator pdfGenerator,
     IMapper mapper,
     IValidator<MedicalLetterPostDTO> postValidator,
     IValidator<MedicalLetterPutDTO> putValidator) : IMedicalLetterService
@@ -26,6 +27,7 @@ public class MedicalLetterService(
     private readonly IUploadedDocumentRepository _documentRepo = documentRepo;
     private readonly ILlmService _llmService = llmService;
     private readonly DocumentTextExtractorResolver _extractorResolver = extractorResolver;
+    private readonly MedicalLetterPdfGenerator _pdfGenerator = pdfGenerator;
     private readonly IMapper _mapper = mapper;
     private readonly IValidator<MedicalLetterPostDTO> _postValidator = postValidator;
     private readonly IValidator<MedicalLetterPutDTO> _putValidator = putValidator;
@@ -62,8 +64,17 @@ public class MedicalLetterService(
 
         var sessionDocs = (await _documentRepo.GetBySessionIdAsync(dto.SessionId)).ToList();
 
+        var extraDocs = new List<UploadedDocument>();
+        if (dto.IncludeAllPatientDocuments)
+        {
+            var sessionDocIds = sessionDocs.Select(d => d.Id).ToHashSet();
+            extraDocs = (await _documentRepo.GetByPatientIdAsync(session.PatientId))
+                .Where(d => !sessionDocIds.Contains(d.Id))
+                .ToList();
+        }
+
         var contextTexts = new List<string>();
-        foreach (var doc in sessionDocs)
+        foreach (var doc in sessionDocs.Concat(extraDocs))
         {
             var ext = Path.GetExtension(doc.FilePath).ToLowerInvariant();
             var extractor = _extractorResolver.Resolve(ext);
@@ -74,7 +85,7 @@ public class MedicalLetterService(
             }
         }
 
-        _logger.Info($"Loaded {sessionDocs.Count} session document(s), extracted text from {contextTexts.Count}.");
+        _logger.Info($"Loaded {sessionDocs.Count} session + {extraDocs.Count} patient-wide document(s), extracted text from {contextTexts.Count}.");
 
         var content = await _llmService.GenerateLetterAsync(transcript, dto.LetterType, contextTexts, ct);
 
@@ -149,5 +160,18 @@ public class MedicalLetterService(
             ?? throw new InvalidOperationException($"Failed to retrieve updated letter {id}.");
 
         return _mapper.Map<MedicalLetterResponseDTO>(updated);
+    }
+
+    public async Task<(byte[] Bytes, string FileName)> GetPdfAsync(Guid id)
+    {
+        _logger.Info($"Generating PDF for medical letter id={id}.");
+
+        var letter = await _letterRepo.GetByIdAsync(id)
+            ?? throw new NotFoundException($"Medical letter {id} not found.");
+
+        var bytes = _pdfGenerator.Generate(letter);
+        var fileName = $"scrisoare-medicala-{letter.WrittenAt:yyyyMMdd}-{letter.Id}.pdf";
+
+        return (bytes, fileName);
     }
 }

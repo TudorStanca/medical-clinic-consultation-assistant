@@ -16,8 +16,10 @@ public class PatientController(IPatientService patientService) : ControllerBase
     private readonly IPatientService _patientService = patientService;
 
     [HttpPost]
-    [AllowAnonymous]
+    [Authorize(Roles = $"{Roles.Doctor},{Roles.Admin}")]
     [ProducesResponseType(typeof(PatientResponseDTO), 201)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(422)]
     public async Task<ActionResult> CreatePatient([FromBody] PatientPostDTO dto)
     {
@@ -50,14 +52,14 @@ public class PatientController(IPatientService patientService) : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Doctor}")]
-    [ProducesResponseType(typeof(IEnumerable<PatientResponseDTO>), 200)]
+    [ProducesResponseType(typeof(PagedResponseDTO<PatientResponseDTO>), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
-    public async Task<ActionResult> GetAllPatients()
+    public async Task<ActionResult> GetAllPatients([FromQuery] PagedQueryDTO query)
     {
-        _logger.Info("Received request to get all patients.");
-        var patients = await _patientService.GetAllAsync();
+        _logger.Info($"Received request to get patients. Page={query.Page} Search={query.Search}");
+        var result = await _patientService.GetPagedAsync(query);
 
-        return Ok(patients);
+        return Ok(result);
     }
 }

@@ -43,4 +43,9 @@ public class MedicalLetterRepository(AppDbContext context) : IMedicalLetterRepos
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task<int> CountByDoctorAsync(string doctorId)
+    {
+        return await _context.MedicalLetters.CountAsync(l => l.Session.DoctorId == doctorId);
+    }
 }

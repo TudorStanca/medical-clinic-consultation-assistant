@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.DTOs;
@@ -44,14 +45,42 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Doctor}")]
-    [ProducesResponseType(typeof(IEnumerable<DoctorResponseDTO>), 200)]
+    [ProducesResponseType(typeof(PagedResponseDTO<DoctorResponseDTO>), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(403)]
-    public async Task<ActionResult> GetAllDoctors()
+    public async Task<ActionResult> GetAllDoctors([FromQuery] PagedQueryDTO query)
     {
-        _logger.Info("Received request to get all doctors.");
-        var doctors = await _doctorService.GetAllAsync();
+        _logger.Info($"Received request to get doctors. Page={query.Page} Search={query.Search}");
+        var result = await _doctorService.GetPagedAsync(query);
 
-        return Ok(doctors);
+        return Ok(result);
+    }
+
+    [HttpGet("me/stats")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(typeof(DoctorStatsResponseDTO), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<ActionResult> GetMyStats()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        _logger.Info($"Received stats request for doctor: {userId}");
+        var stats = await _doctorService.GetStatsAsync(userId);
+
+        return Ok(stats);
+    }
+
+    [HttpGet("{id}/stats")]
+    [Authorize(Roles = Roles.Admin)]
+    [ProducesResponseType(typeof(DoctorStatsResponseDTO), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> GetDoctorStats(string id)
+    {
+        _logger.Info($"Received stats request for doctor {id} by admin");
+        var stats = await _doctorService.GetStatsAsync(id);
+
+        return Ok(stats);
     }
 }

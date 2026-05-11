@@ -6,5 +6,5 @@ public interface IPatientService
 {
     Task<PatientResponseDTO> CreatePatientAsync(PatientPostDTO dto);
     Task<PatientResponseDTO> GetByIdAsync(string id);
-    Task<IEnumerable<PatientResponseDTO>> GetAllAsync();
+    Task<PagedResponseDTO<PatientResponseDTO>> GetPagedAsync(PagedQueryDTO query);
 }

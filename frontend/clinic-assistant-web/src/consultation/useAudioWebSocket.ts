@@ -5,6 +5,7 @@ const useAudioWebSocket = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const pausedRef = useRef(false);
 
   const startStreaming = async (sessionId: string) => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -19,7 +20,8 @@ const useAudioWebSocket = () => {
     const workletNode = new AudioWorkletNode(audioContext, "pcm-processor");
     workletNodeRef.current = workletNode;
 
-    const ws = new WebSocket(`ws://${location.host}/ws/audio/${sessionId}`);
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${proto}//${location.host}/ws/audio/${sessionId}`);
     wsRef.current = ws;
 
     await new Promise<void>((resolve, reject) => {
@@ -28,16 +30,37 @@ const useAudioWebSocket = () => {
     });
 
     workletNode.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
+      if (pausedRef.current) {
+        return;
+      }
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(event.data);
       }
     };
 
+    // Connect to a silent destination to avoid mic feedback through speakers
+    const silentDest = audioContext.createMediaStreamDestination();
     source.connect(workletNode);
-    workletNode.connect(audioContext.destination);
+    workletNode.connect(silentDest);
+  };
+
+  const pauseStreaming = async () => {
+    pausedRef.current = true;
+    if (audioContextRef.current?.state === "running") {
+      await audioContextRef.current.suspend();
+    }
+  };
+
+  const resumeStreaming = async () => {
+    if (audioContextRef.current?.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+    pausedRef.current = false;
   };
 
   const stopStreaming = () => {
+    pausedRef.current = false;
+
     workletNodeRef.current?.disconnect();
     workletNodeRef.current = null;
 
@@ -51,7 +74,7 @@ const useAudioWebSocket = () => {
     wsRef.current = null;
   };
 
-  return { startStreaming, stopStreaming };
+  return { startStreaming, stopStreaming, pauseStreaming, resumeStreaming };
 };
 
 export default useAudioWebSocket;

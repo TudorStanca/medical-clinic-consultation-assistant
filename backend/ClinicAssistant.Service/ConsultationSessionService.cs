@@ -1,5 +1,6 @@
 using AutoMapper;
 using ClinicAssistant.Controller.Interfaces;
+using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.DTOs;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Domain.Enums;
@@ -37,6 +38,11 @@ public class ConsultationSessionService(
             throw new EntityValidationException(result.Errors.Select(e => e.ErrorMessage));
         }
 
+        if (await _sessionRepo.HasActiveSessionAsync(dto.DoctorId))
+        {
+            throw new ConflictException("Aveți deja o consultație activă. Finalizați-o înainte de a începe alta.");
+        }
+
         var session = new ConsultationSession
         {
             DoctorId = dto.DoctorId,
@@ -54,6 +60,19 @@ public class ConsultationSessionService(
             ?? throw new NotFoundException($"Session {sessionId} not found.");
 
         return _mapper.Map<SessionDetailResponseDTO>(session);
+    }
+
+    public async Task<PagedResponseDTO<SessionSummaryResponseDTO>> GetSessionsPagedForUserAsync(string userId, IEnumerable<string> roles, PagedQueryDTO query)
+    {
+        _logger.Info($"Getting paged sessions for user={userId}. Page={query.Page} PageSize={query.PageSize} Search={query.Search}");
+
+        var (items, total) = await _sessionRepo.GetPagedForUserAsync(userId, roles, query.Page, query.PageSize, query.Search, query.SortBy, query.SortDir);
+
+        return new PagedResponseDTO<SessionSummaryResponseDTO>(
+            items.Select(s => _mapper.Map<SessionSummaryResponseDTO>(s)),
+            total,
+            query.Page,
+            query.PageSize);
     }
 
     public async Task<IEnumerable<TranscriptSegmentResponseDTO>> GetTranscriptAsync(Guid sessionId)
@@ -94,11 +113,6 @@ public class ConsultationSessionService(
 
             await _sessionRepo.AddSegmentsAsync(segmentEntities);
 
-            foreach (var seg in segmentEntities)
-            {
-                await _publisher.PublishSegmentAsync(sessionId, seg, ct);
-            }
-
             session.MarkDone();
             await _sessionRepo.UpdateAsync(session);
 
@@ -114,6 +128,31 @@ public class ConsultationSessionService(
 
             throw;
         }
+    }
+
+    public async Task DeleteSessionAsync(Guid sessionId, string requestingDoctorId)
+    {
+        _logger.Info($"Deleting session {sessionId} requested by Doctor={requestingDoctorId}");
+
+        var session = await _sessionRepo.GetByIdAsync(sessionId)
+            ?? throw new NotFoundException($"Session {sessionId} not found.");
+
+        if (session.DoctorId != requestingDoctorId)
+        {
+            throw new UnauthorizedException("Nu aveți permisiunea de a șterge această consultație.");
+        }
+
+        if (session.Status != SessionStatus.Interrupted && session.Status != SessionStatus.Failed)
+        {
+            throw new EntityValidationException([$"Sesiunea nu poate fi ștearsă deoarece are statusul '{session.Status}'."]);
+        }
+
+        if (session.AudioFilePath is not null && File.Exists(session.AudioFilePath))
+        {
+            File.Delete(session.AudioFilePath);
+        }
+
+        await _sessionRepo.DeleteAsync(session);
     }
 
     public async Task UpdateStatusAsync(Guid sessionId, SessionStatus status)

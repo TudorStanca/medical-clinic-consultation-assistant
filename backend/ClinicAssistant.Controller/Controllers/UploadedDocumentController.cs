@@ -59,6 +59,19 @@ public class UploadedDocumentController(IUploadedDocumentService documentService
         return Ok(docs);
     }
 
+    [HttpGet("{id:guid}/file")]
+    [Authorize]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> GetFile(Guid id)
+    {
+        _logger.Info($"Received request to view file for document {id}");
+        var (stream, contentType, fileName) = await _documentService.GetFileAsync(id);
+
+        return File(stream, contentType, fileName);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = $"{Roles.Doctor},{Roles.Admin}")]
     [ProducesResponseType(204)]

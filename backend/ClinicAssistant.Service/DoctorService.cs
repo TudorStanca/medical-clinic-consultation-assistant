@@ -9,13 +9,15 @@ using log4net;
 
 namespace ClinicAssistant.Service;
 
-public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<DoctorPostDTO> validator)
+public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<DoctorPostDTO> validator, IConsultationSessionRepository sessionRepo, IMedicalLetterRepository letterRepo)
     : IDoctorService
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(DoctorService));
     private readonly IUserRepository _userRepo = userRepo;
     private readonly IMapper _mapper = mapper;
     private readonly IValidator<DoctorPostDTO> _validator = validator;
+    private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
+    private readonly IMedicalLetterRepository _letterRepo = letterRepo;
 
     public async Task<DoctorResponseDTO> CreateDoctorAsync(DoctorPostDTO dto)
     {
@@ -48,12 +50,26 @@ public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<
         return _mapper.Map<DoctorResponseDTO>(doctor);
     }
 
-    public async Task<IEnumerable<DoctorResponseDTO>> GetAllAsync()
+    public async Task<PagedResponseDTO<DoctorResponseDTO>> GetPagedAsync(PagedQueryDTO query)
     {
-        _logger.Info("Getting all doctors.");
+        _logger.Info($"Getting paged doctors. Page={query.Page} PageSize={query.PageSize} Search={query.Search}");
 
-        var doctors = await _userRepo.GetAllDoctorsAsync();
+        var (items, total) = await _userRepo.GetDoctorPagedAsync(query.Page, query.PageSize, query.Search, query.SortBy, query.SortDir);
 
-        return doctors.Select(d => _mapper.Map<DoctorResponseDTO>(d));
+        return new PagedResponseDTO<DoctorResponseDTO>(
+            items.Select(d => _mapper.Map<DoctorResponseDTO>(d)),
+            total,
+            query.Page,
+            query.PageSize);
+    }
+
+    public async Task<DoctorStatsResponseDTO> GetStatsAsync(string doctorId)
+    {
+        _logger.Info($"Getting stats for doctor: {doctorId}");
+
+        var consultationCount = await _sessionRepo.CountByDoctorAsync(doctorId);
+        var letterCount = await _letterRepo.CountByDoctorAsync(doctorId);
+
+        return new DoctorStatsResponseDTO(consultationCount, letterCount);
     }
 }

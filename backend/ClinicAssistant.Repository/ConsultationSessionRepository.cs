@@ -1,4 +1,6 @@
+using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Domain.Enums;
 using ClinicAssistant.Service.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,7 +36,9 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     public async Task<IEnumerable<ConsultationSession>> GetAllByDoctorAsync(string doctorId)
     {
         return await _context.ConsultationSessions
+            .Include(s => s.Doctor)
             .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
             .Where(s => s.DoctorId == doctorId)
             .ToListAsync();
     }
@@ -43,8 +47,61 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     {
         return await _context.ConsultationSessions
             .Include(s => s.Doctor)
+            .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
             .Where(s => s.PatientId == patientId)
             .ToListAsync();
+    }
+
+    public async Task<IEnumerable<ConsultationSession>> GetAllAsync()
+    {
+        return await _context.ConsultationSessions
+            .Include(s => s.Doctor)
+            .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
+            .ToListAsync();
+    }
+
+    public async Task<(IEnumerable<ConsultationSession> Items, int Total)> GetPagedForUserAsync(string userId, IEnumerable<string> roles, int page, int pageSize, string? search, string? sortBy, string? sortDir)
+    {
+        var roleList = roles.ToList();
+        var query = _context.ConsultationSessions
+            .Include(s => s.Doctor)
+            .Include(s => s.Patient)
+            .Include(s => s.MedicalLetter)
+            .AsQueryable();
+
+        if (roleList.Contains(Roles.Doctor))
+        {
+            query = query.Where(s => s.DoctorId == userId);
+        }
+        else if (roleList.Contains(Roles.Patient))
+        {
+            query = query.Where(s => s.PatientId == userId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            query = query.Where(s =>
+                (s.Patient.FirstName + " " + s.Patient.LastName).ToLower().Contains(term) ||
+                (s.Doctor.FirstName + " " + s.Doctor.LastName).ToLower().Contains(term));
+        }
+
+        var desc = sortDir?.ToLower() == "desc";
+        query = sortBy?.ToLower() switch
+        {
+            "patientfullname" => desc
+                ? query.OrderByDescending(s => s.Patient.LastName).ThenByDescending(s => s.Patient.FirstName)
+                : query.OrderBy(s => s.Patient.LastName).ThenBy(s => s.Patient.FirstName),
+            "status" => desc ? query.OrderByDescending(s => s.Status) : query.OrderBy(s => s.Status),
+            _ => desc ? query.OrderByDescending(s => s.CreatedAt) : query.OrderBy(s => s.CreatedAt),
+        };
+
+        var total = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        return (items, total);
     }
 
     public async Task UpdateAsync(ConsultationSession session)
@@ -61,5 +118,39 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     {
         await _context.TranscriptSegments.AddRangeAsync(segments);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> HasActiveSessionAsync(string doctorId)
+    {
+        return await _context.ConsultationSessions.AnyAsync(s =>
+            s.DoctorId == doctorId &&
+            (s.Status == SessionStatus.Recording || s.Status == SessionStatus.Processing));
+    }
+
+    public async Task<int> MarkActiveAsInterruptedAsync(CancellationToken ct = default)
+    {
+        var sessions = await _context.ConsultationSessions
+            .Where(s => s.Status == SessionStatus.Recording || s.Status == SessionStatus.Processing)
+            .ToListAsync(ct);
+
+        foreach (var session in sessions)
+        {
+            session.MarkInterrupted();
+        }
+
+        await _context.SaveChangesAsync(ct);
+
+        return sessions.Count;
+    }
+
+    public async Task DeleteAsync(ConsultationSession session)
+    {
+        _context.ConsultationSessions.Remove(session);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<int> CountByDoctorAsync(string doctorId)
+    {
+        return await _context.ConsultationSessions.CountAsync(s => s.DoctorId == doctorId);
     }
 }
