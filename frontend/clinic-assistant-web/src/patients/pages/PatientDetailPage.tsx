@@ -14,8 +14,8 @@ import LockResetIcon from "@mui/icons-material/LockReset";
 import usePatientApi from "@/patients/usePatientApi";
 import ResetPasswordDialog from "@/auth/components/ResetPasswordDialog";
 import DocumentsPanel from "@/documents/components/DocumentsPanel";
-import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 import { SexLabels } from "@/shared/types/enums";
 import useAuth from "@/auth/useAuth";
 import { Roles } from "@/shared/types/enums";
@@ -26,9 +26,9 @@ const PatientDetailPage = () => {
   const { getPatientById } = usePatientApi();
   const { hasRole } = useAuth();
   const navigate = useNavigate();
+  const notify = useNotification();
   const [patient, setPatient] = useState<PatientResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
 
   const fetchPatient = useCallback(async () => {
@@ -36,12 +36,11 @@ const PatientDetailPage = () => {
       return;
     }
     setLoading(true);
-    setErrors([]);
     try {
       const data = await getPatientById(id);
       setPatient(data);
     } catch (err) {
-      setErrors(extractErrorMessages(err));
+      extractErrorMessages(err).forEach((m) => notify(m, "error"));
     } finally {
       setLoading(false);
     }
@@ -61,7 +60,6 @@ const PatientDetailPage = () => {
 
   return (
     <Box>
-      <ErrorBanner messages={errors} />
       <Button
         startIcon={<ArrowBackIcon />}
         onClick={() => navigate("/patients")}

@@ -16,8 +16,10 @@ public class PatientController(IPatientService patientService) : ControllerBase
     private readonly IPatientService _patientService = patientService;
 
     [HttpPost]
-    [AllowAnonymous]
+    [Authorize(Roles = $"{Roles.Doctor},{Roles.Admin}")]
     [ProducesResponseType(typeof(PatientResponseDTO), 201)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(422)]
     public async Task<ActionResult> CreatePatient([FromBody] PatientPostDTO dto)
     {

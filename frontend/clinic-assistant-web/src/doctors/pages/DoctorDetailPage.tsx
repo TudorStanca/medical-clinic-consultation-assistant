@@ -16,8 +16,8 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import useDoctorApi from "@/doctors/useDoctorApi";
 import useProfileApi from "@/profile/useProfileApi";
 import ResetPasswordDialog from "@/auth/components/ResetPasswordDialog";
-import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 import type { DoctorResponseDTO } from "@/doctors/props";
 import type { DoctorStatsResponseDTO } from "@/profile/props";
 
@@ -41,10 +41,10 @@ const DoctorDetailPage = () => {
   const { getDoctorById } = useDoctorApi();
   const { getDoctorStatsById } = useProfileApi();
 
+  const notify = useNotification();
   const [doctor, setDoctor] = useState<DoctorResponseDTO | null>(null);
   const [stats, setStats] = useState<DoctorStatsResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
 
   const fetchDoctor = useCallback(async () => {
@@ -52,7 +52,6 @@ const DoctorDetailPage = () => {
       return;
     }
     setLoading(true);
-    setErrors([]);
     try {
       const [doctorData, statsData] = await Promise.all([
         getDoctorById(id),
@@ -61,7 +60,7 @@ const DoctorDetailPage = () => {
       setDoctor(doctorData);
       setStats(statsData);
     } catch (err) {
-      setErrors(extractErrorMessages(err));
+      extractErrorMessages(err).forEach((m) => notify(m, "error"));
     } finally {
       setLoading(false);
     }
@@ -81,7 +80,6 @@ const DoctorDetailPage = () => {
 
   return (
     <Box>
-      <ErrorBanner messages={errors} />
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/doctors")} sx={{ mb: 1 }}>
         Listă doctori
       </Button>

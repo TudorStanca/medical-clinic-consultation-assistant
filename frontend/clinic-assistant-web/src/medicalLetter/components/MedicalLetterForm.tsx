@@ -5,6 +5,7 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 import type { MedicalLetterResponseDTO } from "@/medicalLetter/props";
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
   const { updateLetter, downloadLetterPdf } = useMedicalLetterApi();
+  const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -63,6 +65,7 @@ const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
         recomandari: recomandari || null,
       });
       onSaved(updated);
+      notify("Scrisoarea a fost salvată.", "success");
     } catch (err) {
       setErrors(extractErrorMessages(err));
     } finally {

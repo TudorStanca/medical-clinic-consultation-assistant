@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { Box, CircularProgress, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { AuthProvider } from "@/auth/AuthContext";
 import { RecordingProvider } from "@/consultation/RecordingContext";
+import { NotificationProvider } from "@/shared/NotificationContext";
 
 const theme = createTheme();
 
@@ -15,13 +16,15 @@ const Loader = () => (
 const RootLayout = () => (
   <ThemeProvider theme={theme}>
     <CssBaseline />
-    <AuthProvider>
-      <RecordingProvider>
-        <Suspense fallback={<Loader />}>
-          <Outlet />
-        </Suspense>
-      </RecordingProvider>
-    </AuthProvider>
+    <NotificationProvider>
+      <AuthProvider>
+        <RecordingProvider>
+          <Suspense fallback={<Loader />}>
+            <Outlet />
+          </Suspense>
+        </RecordingProvider>
+      </AuthProvider>
+    </NotificationProvider>
   </ThemeProvider>
 );
 

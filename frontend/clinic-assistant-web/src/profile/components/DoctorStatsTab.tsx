@@ -4,7 +4,7 @@ import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import DescriptionIcon from "@mui/icons-material/Description";
 import useProfileApi from "@/profile/useProfileApi";
 import { extractErrorMessages } from "@/core/errorMessages";
-import ErrorBanner from "@/shared/components/ErrorBanner";
+import useNotification from "@/shared/NotificationContext";
 import type { DoctorStatsResponseDTO } from "@/profile/props";
 
 const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) => (
@@ -23,9 +23,9 @@ const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string
 
 const DoctorStatsTab = () => {
   const { getDoctorStats } = useProfileApi();
+  const notify = useNotification();
   const [stats, setStats] = useState<DoctorStatsResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -33,7 +33,7 @@ const DoctorStatsTab = () => {
         const data = await getDoctorStats();
         setStats(data);
       } catch (err) {
-        setErrors(extractErrorMessages(err));
+        extractErrorMessages(err).forEach((m) => notify(m, "error"));
       } finally {
         setLoading(false);
       }
@@ -52,7 +52,6 @@ const DoctorStatsTab = () => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <ErrorBanner messages={errors} />
       {stats && (
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
           <StatCard

@@ -4,8 +4,8 @@ import { Box, Button, CircularProgress, Paper, Typography } from "@mui/material"
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import useConsultationApi from "@/consultation/useConsultationApi";
 import PatientPicker from "@/consultation/components/PatientPicker";
-import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 import useAuth from "@/auth/useAuth";
 import usePatientApi from "@/patients/usePatientApi";
 import type { PatientResponseDTO } from "@/patients/props";
@@ -17,9 +17,9 @@ const NewConsultationPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  const notify = useNotification();
   const [patient, setPatient] = useState<PatientResponseDTO | null>(null);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
 
   useEffect(() => {
     const preloadId = searchParams.get("patientId");
@@ -35,13 +35,12 @@ const NewConsultationPage = () => {
     if (!patient || !user) {
       return;
     }
-    setErrors([]);
     setLoading(true);
     try {
       const { sessionId } = await createSession(user.id, patient.id);
       navigate(`/consultations/${sessionId}`);
     } catch (err) {
-      setErrors(extractErrorMessages(err));
+      extractErrorMessages(err).forEach((m) => notify(m, "error"));
       setLoading(false);
     }
   };
@@ -52,7 +51,6 @@ const NewConsultationPage = () => {
         Consultație nouă
       </Typography>
       <Paper sx={{ p: 3 }}>
-        <ErrorBanner messages={errors} />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <PatientPicker value={patient} onChange={setPatient} />
           <Button

@@ -16,8 +16,8 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import useDocumentApi from "@/documents/useDocumentApi";
 import UploadDocumentDialog from "@/documents/components/UploadDocumentDialog";
 import ConfirmDialog from "@/shared/components/ConfirmDialog";
-import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 import useAuth from "@/auth/useAuth";
 import { Roles } from "@/shared/types/enums";
 import type { UploadedDocumentResponseDTO } from "@/documents/props";
@@ -31,9 +31,9 @@ interface Props {
 const DocumentsPanel = ({ patientId, sessionId, readOnly = false }: Props) => {
   const { getDocumentsByPatient, deleteDocument, openDocumentFile } = useDocumentApi();
   const { user, hasRole } = useAuth();
+  const notify = useNotification();
   const [docs, setDocs] = useState<UploadedDocumentResponseDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
@@ -43,16 +43,15 @@ const DocumentsPanel = ({ patientId, sessionId, readOnly = false }: Props) => {
 
   const fetchDocs = useCallback(async () => {
     setLoading(true);
-    setErrors([]);
     try {
       const data = await getDocumentsByPatient(patientId);
       setDocs(data);
     } catch (err) {
-      setErrors(extractErrorMessages(err));
+      extractErrorMessages(err).forEach((m) => notify(m, "error"));
     } finally {
       setLoading(false);
     }
-  }, [patientId, getDocumentsByPatient]);
+  }, [patientId, getDocumentsByPatient, notify]);
 
   useEffect(() => {
     fetchDocs();
@@ -70,8 +69,9 @@ const DocumentsPanel = ({ patientId, sessionId, readOnly = false }: Props) => {
     try {
       await deleteDocument(deleteTarget);
       setDocs((prev) => prev.filter((d) => d.id !== deleteTarget));
+      notify("Document șters.", "success");
     } catch (err) {
-      setErrors(extractErrorMessages(err));
+      extractErrorMessages(err).forEach((m) => notify(m, "error"));
     } finally {
       setDeleteTarget(null);
     }
@@ -98,7 +98,6 @@ const DocumentsPanel = ({ patientId, sessionId, readOnly = false }: Props) => {
           </Button>
         )}
       </Box>
-      <ErrorBanner messages={errors} />
       {loading ? (
         <CircularProgress size={20} />
       ) : (

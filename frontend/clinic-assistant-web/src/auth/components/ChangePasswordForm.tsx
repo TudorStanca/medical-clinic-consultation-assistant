@@ -3,6 +3,7 @@ import { Box, Button, CircularProgress, TextField } from "@mui/material";
 import useAuthApi from "@/auth/useAuthApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 
 interface Props {
   onSuccess?: () => void;
@@ -10,6 +11,7 @@ interface Props {
 
 const ChangePasswordForm = ({ onSuccess }: Props) => {
   const { changePassword } = useAuthApi();
+  const notify = useNotification();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -49,6 +51,7 @@ const ChangePasswordForm = ({ onSuccess }: Props) => {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      notify("Parola a fost schimbată cu succes.", "success");
       onSuccess?.();
     } catch (err) {
       setErrors(extractErrorMessages(err));

@@ -25,8 +25,8 @@ import DocumentsPanel from "@/documents/components/DocumentsPanel";
 import GenerateLetterDialog from "@/medicalLetter/components/GenerateLetterDialog";
 import MedicalLetterForm from "@/medicalLetter/components/MedicalLetterForm";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
-import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 import useAuth from "@/auth/useAuth";
 import { useRecording } from "@/consultation/RecordingContext";
 import { Roles } from "@/shared/types/enums";
@@ -53,8 +53,8 @@ const ConsultationPage = () => {
   const [letter, setLetter] = useState<MedicalLetterResponseDTO | null>(null);
   const [letterLoaded, setLetterLoaded] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const notify = useNotification();
   const [loading, setLoading] = useState(true);
-  const [errors, setErrors] = useState<string[]>([]);
 
   const isDoctor = hasRole(Roles.Doctor);
   const isActive = recording || paused;
@@ -137,7 +137,6 @@ const ConsultationPage = () => {
     }
     const init = async () => {
       setLoading(true);
-      setErrors([]);
       try {
         const session = await getSessionById(sessionId);
         setStatus(session.status);
@@ -156,19 +155,18 @@ const ConsultationPage = () => {
           setLetterLoaded(true);
         }
       } catch (err) {
-        setErrors(extractErrorMessages(err));
+        extractErrorMessages(err).forEach((m) => notify(m, "error"));
       } finally {
         setLoading(false);
       }
     };
     init();
-  }, [sessionId, getSessionById, getTranscript, getLetterBySessionId]);
+  }, [sessionId, getSessionById, getTranscript, getLetterBySessionId, notify]);
 
   const handleStart = async () => {
     if (!sessionId) {
       return;
     }
-    setErrors([]);
     try {
       await connect(sessionId);
       await startStreaming(sessionId);
@@ -177,7 +175,7 @@ const ConsultationPage = () => {
       setRecording(true);
       setIsPreview(true);
     } catch (err) {
-      setErrors(extractErrorMessages(err));
+      extractErrorMessages(err).forEach((m) => notify(m, "error"));
     }
   };
 
@@ -214,7 +212,6 @@ const ConsultationPage = () => {
 
   return (
     <Box>
-      <ErrorBanner messages={errors} />
       <Button
         startIcon={<ArrowBackIcon />}
         onClick={() => navigate("/consultations")}

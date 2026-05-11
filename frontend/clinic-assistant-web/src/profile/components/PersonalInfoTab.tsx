@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Button, CircularProgress, Snackbar, TextField } from "@mui/material";
+import { Box, Button, CircularProgress, TextField } from "@mui/material";
 import useAuth from "@/auth/useAuth";
 import useProfileApi from "@/profile/useProfileApi";
 import useDoctorApi from "@/doctors/useDoctorApi";
@@ -7,9 +7,11 @@ import usePatientApi from "@/patients/usePatientApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import { Roles, SexLabels } from "@/shared/types/enums";
+import useNotification from "@/shared/NotificationContext";
 
 const PersonalInfoTab = () => {
   const { user, hasRole, refreshToken } = useAuth();
+  const notify = useNotification();
   const { updateProfile } = useProfileApi();
   const { getDoctorById } = useDoctorApi();
   const { getPatientById } = usePatientApi();
@@ -24,7 +26,6 @@ const PersonalInfoTab = () => {
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
-  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -81,7 +82,7 @@ const PersonalInfoTab = () => {
       });
       refreshToken(response.token);
       setInitialPhoneNumber(phoneNumber);
-      setSuccess(true);
+      notify("Datele au fost actualizate.", "success");
     } catch (err) {
       setErrors(extractErrorMessages(err));
     } finally {
@@ -98,8 +99,7 @@ const PersonalInfoTab = () => {
   }
 
   return (
-    <>
-      <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 480 }}>
+    <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 480 }}>
         <ErrorBanner messages={errors} />
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
           <TextField
@@ -140,13 +140,6 @@ const PersonalInfoTab = () => {
           </Box>
         )}
       </Box>
-      <Snackbar
-        open={success}
-        autoHideDuration={4000}
-        onClose={() => setSuccess(false)}
-        message="Datele au fost actualizate."
-      />
-    </>
   );
 };
 

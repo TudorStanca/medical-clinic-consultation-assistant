@@ -5,13 +5,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Snackbar,
   TextField,
   Typography,
 } from "@mui/material";
 import useAuthApi from "@/auth/useAuthApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
+import useNotification from "@/shared/NotificationContext";
 
 interface Props {
   open: boolean;
@@ -22,11 +22,11 @@ interface Props {
 
 const ResetPasswordDialog = ({ open, onClose, targetUserId, targetUserName }: Props) => {
   const { resetUserPassword } = useAuthApi();
+  const notify = useNotification();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   const reset = () => {
     setNewPassword("");
@@ -65,7 +65,7 @@ const ResetPasswordDialog = ({ open, onClose, targetUserId, targetUserName }: Pr
       await resetUserPassword(targetUserId, { newPassword });
       reset();
       onClose();
-      setSuccess(true);
+      notify(`Parola pentru ${targetUserName} a fost resetată.`, "success");
     } catch (err) {
       setErrors(extractErrorMessages(err));
     } finally {
@@ -108,12 +108,6 @@ const ResetPasswordDialog = ({ open, onClose, targetUserId, targetUserName }: Pr
           </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={success}
-        autoHideDuration={4000}
-        onClose={() => setSuccess(false)}
-        message={`Parola pentru ${targetUserName} a fost resetată.`}
-      />
     </>
   );
 };
