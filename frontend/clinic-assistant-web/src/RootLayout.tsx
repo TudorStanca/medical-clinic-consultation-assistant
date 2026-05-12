@@ -1,11 +1,10 @@
 import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
-import { Box, CircularProgress, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { Box, CircularProgress, CssBaseline, ThemeProvider } from "@mui/material";
 import { AuthProvider } from "@/auth/AuthContext";
 import { RecordingProvider } from "@/consultation/RecordingContext";
 import { NotificationProvider } from "@/shared/NotificationContext";
-
-const theme = createTheme();
+import muiTheme from "@/theme/muiTheme";
 
 const Loader = () => (
   <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}>
@@ -14,7 +13,7 @@ const Loader = () => (
 );
 
 const RootLayout = () => (
-  <ThemeProvider theme={theme}>
+  <ThemeProvider theme={muiTheme}>
     <CssBaseline />
     <NotificationProvider>
       <AuthProvider>

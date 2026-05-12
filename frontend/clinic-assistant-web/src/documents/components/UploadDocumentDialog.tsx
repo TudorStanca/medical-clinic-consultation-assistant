@@ -13,13 +13,17 @@ import {
   Select,
   Typography,
 } from "@mui/material";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
+import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
+import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
 import useDocumentApi from "@/documents/useDocumentApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import { DocumentType, DocumentTypeLabels } from "@/shared/types/enums";
 import type { DocumentTypeValue } from "@/shared/types/enums";
 import type { UploadedDocumentResponseDTO } from "@/documents/props";
+import { MS_LIGHT } from "@/theme/tokens";
+
+const T = MS_LIGHT;
 
 interface Props {
   open: boolean;
@@ -44,9 +48,28 @@ const UploadDocumentDialog = ({
   const [docType, setDocType] = useState<DocumentTypeValue>(DocumentType.Analiza);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [dragOver, setDragOver] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] ?? null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer.files?.[0];
+    if (dropped) {
+      setFile(dropped);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setDragOver(false);
   };
 
   const handleUpload = async () => {
@@ -73,10 +96,60 @@ const UploadDocumentDialog = ({
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>Încarcă document</DialogTitle>
       <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: "16px", pt: "4px" }}>
           <ErrorBanner messages={errors} />
-          <Button variant="outlined" component="label" startIcon={<UploadFileIcon />}>
-            {file ? file.name : "Selectează fișier (.pdf, .txt)"}
+
+          {/* Drop zone */}
+          <Box
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileRef.current?.click()}
+            sx={{
+              border: `2px dashed ${dragOver ? T.accent : file ? T.success : T.border}`,
+              borderRadius: "12px",
+              p: "28px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "10px",
+              cursor: "pointer",
+              background: dragOver ? T.accentSoft : file ? T.successSoft : T.bg,
+              transition: "all 0.15s ease",
+              userSelect: "none",
+              "&:hover": {
+                borderColor: file ? T.success : T.accent,
+                background: file ? T.successSoft : T.accentSoft,
+              },
+            }}
+          >
+            {file ? (
+              <InsertDriveFileOutlinedIcon sx={{ fontSize: 40, color: T.success }} />
+            ) : (
+              <CloudUploadOutlinedIcon
+                sx={{ fontSize: 40, color: dragOver ? T.accent : T.textDim }}
+              />
+            )}
+            <Typography
+              sx={{
+                fontSize: "0.875rem",
+                color: file ? T.success : T.textMuted,
+                textAlign: "center",
+                fontWeight: file ? 500 : 400,
+              }}
+            >
+              {file ? file.name : "Trage fișierul aici sau apasă pentru a selecta"}
+            </Typography>
+            {file && (
+              <Typography sx={{ fontSize: "0.75rem", color: T.textDim }}>
+                {(file.size / 1024).toFixed(1)} KB
+              </Typography>
+            )}
+            {!file && (
+              <Typography sx={{ fontSize: "0.75rem", color: T.textDim }}>
+                Formate acceptate: .pdf, .txt
+              </Typography>
+            )}
             <input
               ref={fileRef}
               type="file"
@@ -84,12 +157,8 @@ const UploadDocumentDialog = ({
               hidden
               onChange={handleFileChange}
             />
-          </Button>
-          {file && (
-            <Typography variant="caption" color="text.secondary">
-              {(file.size / 1024).toFixed(1)} KB
-            </Typography>
-          )}
+          </Box>
+
           <FormControl fullWidth>
             <InputLabel>Tip document</InputLabel>
             <Select

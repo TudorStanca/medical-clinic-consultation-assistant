@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Paper,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -18,20 +17,69 @@ import PagedTable from "@/shared/components/PagedTable";
 import type { Column } from "@/shared/components/PagedTable";
 import type { PatientResponseDTO } from "@/patients/props";
 import type { PagedQuery } from "@/shared/types/api";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
+import { usePageHeader } from "@/shared/PageHeaderContext";
+
+const T = MS_LIGHT;
+
+const cardSx = {
+  background: T.surface,
+  border: `1px solid ${T.border}`,
+  borderRadius: "14px",
+  p: "24px",
+} as const;
 
 const columns: Column<PatientResponseDTO>[] = [
-  { key: "lastName", label: "Nume", sortable: true, render: (p) => `${p.lastName} ${p.firstName}` },
-  { key: "email", label: "Email", sortable: true, render: (p) => p.email },
-  { key: "identityNumber", label: "CNP", render: (p) => p.identityNumber },
-  { key: "phoneNumber", label: "Telefon", render: (p) => p.phoneNumber ?? "—" },
+  {
+    key: "lastName",
+    label: "Nume",
+    sortable: true,
+    render: (p) => (
+      <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: T.text }}>
+        {p.lastName} {p.firstName}
+      </Typography>
+    ),
+  },
+  {
+    key: "email",
+    label: "Email",
+    sortable: true,
+    render: (p) => (
+      <Typography sx={{ fontSize: "0.875rem", color: T.textMuted }}>{p.email}</Typography>
+    ),
+  },
+  {
+    key: "identityNumber",
+    label: "CNP",
+    render: (p) => (
+      <Typography sx={{ fontFamily: MS_FONTS.mono, fontSize: "0.8125rem", color: T.textMuted }}>
+        {p.identityNumber}
+      </Typography>
+    ),
+  },
+  {
+    key: "phoneNumber",
+    label: "Telefon",
+    render: (p) => (
+      <Typography sx={{ fontSize: "0.875rem", color: T.textMuted }}>
+        {p.phoneNumber ?? "—"}
+      </Typography>
+    ),
+  },
 ];
 
 const PatientsListPage = () => {
   const { getPatientsPaged } = usePatientApi();
   const navigate = useNavigate();
+  const { setHeader } = usePageHeader();
   const [addOpen, setAddOpen] = useState(false);
   const [formDirty, setFormDirty] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+
+  useEffect(() => {
+    setHeader({ title: "Pacienți", subtitle: "Gestionare pacienți" });
+    return () => setHeader({ title: "" });
+  }, [setHeader]);
 
   const fetchPaged = useCallback(
     (query: PagedQuery) => getPatientsPaged(query),
@@ -54,24 +102,37 @@ const PatientsListPage = () => {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-        <Typography variant="h5">Pacienți</Typography>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: "24px" }}>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: "1.375rem",
+              fontWeight: 600,
+              color: T.text,
+              fontFamily: MS_FONTS.sans,
+              letterSpacing: "-0.3px",
+            }}
+          >
+            Pacienți
+          </Typography>
+          <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted, mt: "2px" }}>
+            Toți pacienții înregistrați în sistem
+          </Typography>
+        </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>
           Adaugă pacient
         </Button>
       </Box>
-      <Paper>
-        <Box sx={{ p: 2 }}>
-          <PagedTable
-            columns={columns}
-            fetch={fetchPaged}
-            onRowClick={(p) => navigate(`/patients/${p.id}`)}
-            searchPlaceholder="Caută după nume, email sau CNP..."
-            defaultSortBy="lastName"
-            rowKey={(p) => p.id}
-          />
-        </Box>
-      </Paper>
+      <Box sx={cardSx}>
+        <PagedTable
+          columns={columns}
+          fetch={fetchPaged}
+          onRowClick={(p) => navigate(`/patients/${p.id}`)}
+          searchPlaceholder="Caută după nume, email sau CNP..."
+          defaultSortBy="lastName"
+          rowKey={(p) => p.id}
+        />
+      </Box>
       <Dialog open={addOpen} onClose={handleCloseAdd} maxWidth="sm" fullWidth>
         <DialogTitle>Adaugă pacient nou</DialogTitle>
         <DialogContent>

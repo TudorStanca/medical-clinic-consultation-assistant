@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { Navigate, Route } from "react-router-dom";
+import { Route } from "react-router-dom";
 import ProtectedRoute from "@/auth/ProtectedRoute";
 import AppLayout from "@/layout/AppLayout";
 import LoginPage from "@/auth/LoginPage";
@@ -15,10 +15,15 @@ const PatientDetailPage = lazy(() => import("@/patients/pages/PatientDetailPage"
 const DoctorsListPage = lazy(() => import("@/doctors/pages/DoctorsListPage"));
 const DoctorDetailPage = lazy(() => import("@/doctors/pages/DoctorDetailPage"));
 const ProfilePage = lazy(() => import("@/profile/pages/ProfilePage"));
+const LetterPreviewPage = lazy(() => import("@/medicalLetter/pages/LetterPreviewPage"));
+const NotFoundPage = lazy(() => import("@/shared/pages/NotFoundPage"));
+const ForbiddenPage = lazy(() => import("@/shared/pages/ForbiddenPage"));
 
 const routeTree = (
   <Route element={<RootLayout />}>
     <Route path="/login" element={<LoginPage />} />
+    <Route path="/404" element={<NotFoundPage />} />
+    <Route path="/403" element={<ForbiddenPage />} />
     <Route element={<ProtectedRoute />}>
       <Route element={<AppLayout />}>
         <Route path="/" element={<DashboardPage />} />
@@ -37,7 +42,8 @@ const routeTree = (
           <Route path="/doctors/:id" element={<DoctorDetailPage />} />
         </Route>
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/letters/:letterId/preview" element={<LetterPreviewPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Route>
   </Route>

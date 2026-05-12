@@ -57,7 +57,16 @@ const useMedicalLetterApi = () => {
     [axios]
   );
 
-  return { createLetter, getLetterBySessionId, updateLetter, downloadLetterPdf };
+  const previewLetterPdf = useCallback(
+    async (id: string): Promise<string> => {
+      const res = await axios.get(`${letterUrl}/${id}/pdf`, { responseType: "blob" });
+
+      return URL.createObjectURL(res.data);
+    },
+    [axios]
+  );
+
+  return { createLetter, getLetterBySessionId, updateLetter, downloadLetterPdf, previewLetterPdf };
 };
 
 export default useMedicalLetterApi;

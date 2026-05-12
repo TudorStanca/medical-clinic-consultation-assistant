@@ -13,7 +13,7 @@ const ProtectedRoute = ({ allowedRoles }: Props) => {
   }
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.some(hasRole)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/403" replace />;
   }
 
   return <Outlet />;

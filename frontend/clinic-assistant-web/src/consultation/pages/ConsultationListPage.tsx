@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -10,7 +10,6 @@ import {
   DialogContentText,
   DialogTitle,
   IconButton,
-  Paper,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -24,15 +23,10 @@ import { Roles } from "@/shared/types/enums";
 import type { SessionSummaryResponse } from "@/consultation/props";
 import type { SessionStatusName } from "@/shared/types/enums";
 import type { PagedQuery } from "@/shared/types/api";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
+import { usePageHeader } from "@/shared/PageHeaderContext";
 
-const STATUS_COLOR: Record<SessionStatusName, "default" | "primary" | "warning" | "success" | "error"> = {
-  Created: "default",
-  Recording: "primary",
-  Processing: "warning",
-  Done: "success",
-  Failed: "error",
-  Interrupted: "warning",
-};
+const T = MS_LIGHT;
 
 const STATUS_LABEL: Record<SessionStatusName, string> = {
   Created: "Inițializat",
@@ -43,15 +37,37 @@ const STATUS_LABEL: Record<SessionStatusName, string> = {
   Interrupted: "Întreruptă",
 };
 
+const STATUS_COLOR: Record<SessionStatusName, "default" | "primary" | "warning" | "success" | "error"> = {
+  Created: "default",
+  Recording: "primary",
+  Processing: "warning",
+  Done: "success",
+  Failed: "error",
+  Interrupted: "warning",
+};
+
+const cardSx = {
+  background: T.surface,
+  border: `1px solid ${T.border}`,
+  borderRadius: "14px",
+  p: "24px",
+} as const;
+
 const ConsultationListPage = () => {
   const { getSessionsPaged, deleteSession } = useConsultationApi();
   const { hasRole } = useAuth();
   const navigate = useNavigate();
   const isDoctor = hasRole(Roles.Doctor);
+  const { setHeader } = usePageHeader();
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [sessionToDelete, setSessionToDelete] = useState<SessionSummaryResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    setHeader({ title: "Consultații", subtitle: "Istoric consultații medicale" });
+    return () => setHeader({ title: "" });
+  }, [setHeader]);
 
   const fetchPaged = useCallback(
     (query: PagedQuery) => getSessionsPaged(query),
@@ -78,10 +94,31 @@ const ConsultationListPage = () => {
       key: "createdAt",
       label: "Data",
       sortable: true,
-      render: (s) => new Date(s.createdAt).toLocaleDateString("ro-RO"),
+      render: (s) => (
+        <Typography sx={{ fontFamily: MS_FONTS.mono, fontSize: "0.8125rem", color: T.textMuted }}>
+          {new Date(s.createdAt).toLocaleDateString("ro-RO")}
+        </Typography>
+      ),
     },
-    { key: "patientFullName", label: "Pacient", sortable: true, render: (s) => s.patientFullName },
-    { key: "doctorFullName", label: "Doctor", render: (s) => s.doctorFullName },
+    {
+      key: "patientFullName",
+      label: "Pacient",
+      sortable: true,
+      render: (s) => (
+        <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: T.text }}>
+          {s.patientFullName}
+        </Typography>
+      ),
+    },
+    {
+      key: "doctorFullName",
+      label: "Doctor",
+      render: (s) => (
+        <Typography sx={{ fontSize: "0.875rem", color: T.textMuted }}>
+          {s.doctorFullName}
+        </Typography>
+      ),
+    },
     {
       key: "status",
       label: "Status",
@@ -90,7 +127,21 @@ const ConsultationListPage = () => {
         <Chip label={STATUS_LABEL[s.status]} color={STATUS_COLOR[s.status]} size="small" />
       ),
     },
-    { key: "hasLetter", label: "Scrisoare", render: (s) => (s.hasLetter ? "✓" : "—") },
+    {
+      key: "hasLetter",
+      label: "Scrisoare",
+      render: (s) => (
+        <Typography
+          sx={{
+            fontSize: "0.8125rem",
+            color: s.hasLetter ? T.success : T.textDim,
+            fontWeight: s.hasLetter ? 600 : 400,
+          }}
+        >
+          {s.hasLetter ? "✓ Da" : "—"}
+        </Typography>
+      ),
+    },
     ...(isDoctor
       ? [
           {
@@ -101,11 +152,11 @@ const ConsultationListPage = () => {
                 <Tooltip title="Șterge consultație">
                   <IconButton
                     size="small"
-                    color="error"
                     onClick={(e) => {
                       e.stopPropagation();
                       setSessionToDelete(s);
                     }}
+                    sx={{ color: T.danger, "&:hover": { background: T.dangerSoft } }}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
@@ -118,36 +169,50 @@ const ConsultationListPage = () => {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-        <Typography variant="h5">Consultații</Typography>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: "24px" }}>
+        <Box>
+          <Typography
+            sx={{
+              fontSize: "1.375rem",
+              fontWeight: 600,
+              color: T.text,
+              fontFamily: MS_FONTS.sans,
+              letterSpacing: "-0.3px",
+            }}
+          >
+            Consultații
+          </Typography>
+          <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted, mt: "2px" }}>
+            Toate consultațiile medicale înregistrate
+          </Typography>
+        </Box>
         {isDoctor && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/consultations/new")}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate("/consultations/new")}
+          >
             Consultație nouă
           </Button>
         )}
       </Box>
-      <Paper>
-        <Box sx={{ p: 2 }}>
-          <PagedTable
-            columns={columns}
-            fetch={fetchPaged}
-            onRowClick={(s) => navigate(`/consultations/${s.sessionId}`)}
-            searchPlaceholder="Caută după pacient sau doctor..."
-            defaultSortBy="createdAt"
-            defaultSortDir="desc"
-            rowKey={(s) => s.sessionId}
-          />
-        </Box>
-      </Paper>
+      <Box sx={cardSx}>
+        <PagedTable
+          columns={columns}
+          fetch={fetchPaged}
+          onRowClick={(s) => navigate(`/consultations/${s.sessionId}`)}
+          searchPlaceholder="Caută după pacient sau doctor..."
+          defaultSortBy="createdAt"
+          defaultSortDir="desc"
+          rowKey={(s) => s.sessionId}
+        />
+      </Box>
       <Dialog open={!!sessionToDelete} onClose={() => setSessionToDelete(null)}>
         <DialogTitle>Șterge consultație</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Consultația cu{" "}
-            <strong>{sessionToDelete?.patientFullName}</strong> din{" "}
-            {sessionToDelete
-              ? new Date(sessionToDelete.createdAt).toLocaleDateString("ro-RO")
-              : ""}{" "}
+            Consultația cu <strong>{sessionToDelete?.patientFullName}</strong> din{" "}
+            {sessionToDelete ? new Date(sessionToDelete.createdAt).toLocaleDateString("ro-RO") : ""}{" "}
             va fi ștearsă definitiv. Continui?
           </DialogContentText>
         </DialogContent>
