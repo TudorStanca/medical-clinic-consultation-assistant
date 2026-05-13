@@ -16,6 +16,19 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     private readonly ILog _logger = LogManager.GetLogger(typeof(ConsultationSessionController));
     private readonly IConsultationSessionService _sessionService = sessionService;
 
+    [HttpGet("stats")]
+    [Authorize]
+    [ProducesResponseType(typeof(DashboardStatsResponseDTO), 200)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult> GetDashboardStats()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value);
+        var stats = await _sessionService.GetDashboardStatsAsync(userId, roles);
+
+        return Ok(stats);
+    }
+
     [HttpGet]
     [Authorize]
     [ProducesResponseType(typeof(PagedResponseDTO<SessionSummaryResponseDTO>), 200)]

@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Divider,
   Typography,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
@@ -67,11 +66,11 @@ const InfoCell = ({ icon, label, value }: { icon: React.ReactNode; label: string
 );
 
 const InfoRow = ({ label, value }: { label: string; value: string }) => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+  <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
     <Typography sx={{ fontSize: "0.6875rem", fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>
       {label}
     </Typography>
-    <Typography sx={{ fontSize: "0.9rem", color: T.text }}>
+    <Typography sx={{ fontSize: "0.9375rem", fontWeight: 500, color: T.text }}>
       {value}
     </Typography>
   </Box>
@@ -227,25 +226,10 @@ const PatientDetailPage = () => {
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: "16px" }}>
         {/* Personal info card */}
         <Box sx={cardSx}>
-          <SectionLabel>Date personale</SectionLabel>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <InfoRow label="Email" value={patient.email} />
-              <InfoRow label="Telefon" value={patient.phoneNumber ?? "—"} />
-            </Box>
-            <Divider sx={{ borderColor: T.border }} />
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <InfoRow label="CNP" value={patient.identityNumber} />
-              <InfoRow label="Sex" value={SexLabels[patient.sex]} />
-            </Box>
-            <Divider sx={{ borderColor: T.border }} />
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-              <InfoRow
-                label="Data nașterii"
-                value={new Date(patient.birthDate).toLocaleDateString("ro-RO")}
-              />
-              <InfoRow label="Adresă" value={patient.address} />
-            </Box>
+          <SectionLabel>Date medicale</SectionLabel>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+            <InfoRow label="CNP" value={patient.identityNumber} />
+            <InfoRow label="Sex" value={SexLabels[patient.sex]} />
           </Box>
         </Box>
 

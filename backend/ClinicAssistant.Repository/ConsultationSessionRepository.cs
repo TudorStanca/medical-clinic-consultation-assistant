@@ -163,4 +163,107 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
     {
         return await _context.ConsultationSessions.CountAsync(s => s.DoctorId == doctorId);
     }
+
+    public async Task<int> CountByDoctorThisWeekAsync(string doctorId)
+    {
+        var today = DateTime.UtcNow.Date;
+        var dayOfWeek = (int)today.DayOfWeek;
+        var daysFromMonday = dayOfWeek == 0 ? 6 : dayOfWeek - 1;
+        var startOfWeek = today.AddDays(-daysFromMonday);
+
+        return await _context.ConsultationSessions
+            .CountAsync(s => s.DoctorId == doctorId && s.CreatedAt >= startOfWeek);
+    }
+
+    public async Task<int> CountUniquePatientsByDoctorAsync(string doctorId)
+    {
+        return await _context.ConsultationSessions
+            .Where(s => s.DoctorId == doctorId)
+            .Select(s => s.PatientId)
+            .Distinct()
+            .CountAsync();
+    }
+
+    public async Task<int> GetAverageSessionMinutesAsync(string doctorId)
+    {
+        var timestamps = await _context.ConsultationSessions
+            .Where(s => s.DoctorId == doctorId && s.Status == SessionStatus.Done && s.FinishedAt.HasValue)
+            .Select(s => new { s.CreatedAt, FinishedAt = s.FinishedAt!.Value })
+            .ToListAsync();
+
+        if (timestamps.Count == 0)
+        {
+            return 0;
+        }
+
+        return (int)timestamps.Average(s => (s.FinishedAt - s.CreatedAt).TotalMinutes);
+    }
+
+    public async Task<int> CountThisWeekGlobalAsync()
+    {
+        var today = DateTime.UtcNow.Date;
+        var dayOfWeek = (int)today.DayOfWeek;
+        var daysFromMonday = dayOfWeek == 0 ? 6 : dayOfWeek - 1;
+        var startOfWeek = today.AddDays(-daysFromMonday);
+
+        return await _context.ConsultationSessions.CountAsync(s => s.CreatedAt >= startOfWeek);
+    }
+
+    public async Task<int> CountThisWeekByPatientAsync(string patientId)
+    {
+        var today = DateTime.UtcNow.Date;
+        var dayOfWeek = (int)today.DayOfWeek;
+        var daysFromMonday = dayOfWeek == 0 ? 6 : dayOfWeek - 1;
+        var startOfWeek = today.AddDays(-daysFromMonday);
+
+        return await _context.ConsultationSessions
+            .CountAsync(s => s.PatientId == patientId && s.CreatedAt >= startOfWeek);
+    }
+
+    public async Task<int> CountUniquePatientsGlobalAsync()
+    {
+        return await _context.ConsultationSessions
+            .Select(s => s.PatientId)
+            .Distinct()
+            .CountAsync();
+    }
+
+    public async Task<int> CountUniqueDoctorsByPatientAsync(string patientId)
+    {
+        return await _context.ConsultationSessions
+            .Where(s => s.PatientId == patientId)
+            .Select(s => s.DoctorId)
+            .Distinct()
+            .CountAsync();
+    }
+
+    public async Task<int> GetAverageSessionMinutesGlobalAsync()
+    {
+        var timestamps = await _context.ConsultationSessions
+            .Where(s => s.Status == SessionStatus.Done && s.FinishedAt.HasValue)
+            .Select(s => new { s.CreatedAt, FinishedAt = s.FinishedAt!.Value })
+            .ToListAsync();
+
+        if (timestamps.Count == 0)
+        {
+            return 0;
+        }
+
+        return (int)timestamps.Average(s => (s.FinishedAt - s.CreatedAt).TotalMinutes);
+    }
+
+    public async Task<int> GetAverageSessionMinutesByPatientAsync(string patientId)
+    {
+        var timestamps = await _context.ConsultationSessions
+            .Where(s => s.PatientId == patientId && s.Status == SessionStatus.Done && s.FinishedAt.HasValue)
+            .Select(s => new { s.CreatedAt, FinishedAt = s.FinishedAt!.Value })
+            .ToListAsync();
+
+        if (timestamps.Count == 0)
+        {
+            return 0;
+        }
+
+        return (int)timestamps.Average(s => (s.FinishedAt - s.CreatedAt).TotalMinutes);
+    }
 }

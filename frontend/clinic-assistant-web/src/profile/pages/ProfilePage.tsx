@@ -24,8 +24,19 @@ interface TabPanelProps {
 }
 
 const TabPanel = ({ children, value, index }: TabPanelProps) => (
-  <Box role="tabpanel" hidden={value !== index} sx={{ pt: "24px" }}>
-    {value === index && children}
+  <Box role="tabpanel" hidden={value !== index} sx={{ pt: "16px" }}>
+    {value === index && (
+      <Box
+        sx={{
+          background: MS_LIGHT.surface,
+          border: `1px solid ${MS_LIGHT.border}`,
+          borderRadius: "14px",
+          p: { xs: "24px 20px", md: "32px 40px" },
+        }}
+      >
+        {children}
+      </Box>
+    )}
   </Box>
 );
 

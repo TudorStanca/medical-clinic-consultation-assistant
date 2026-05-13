@@ -11,4 +11,7 @@ export interface UpdateProfileResponseDTO {
 export interface DoctorStatsResponseDTO {
   consultationCount: number;
   medicalLetterCount: number;
+  weeklyConsultationCount: number;
+  uniquePatientCount: number;
+  averageSessionMinutes: number;
 }

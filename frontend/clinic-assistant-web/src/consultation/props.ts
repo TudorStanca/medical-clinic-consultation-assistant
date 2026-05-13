@@ -35,3 +35,10 @@ export interface SessionStatusEvent {
   sessionId: string;
   status: SessionStatusName;
 }
+
+export interface DashboardStatsResponse {
+  weeklyConsultationCount: number;
+  totalLetterCount: number;
+  averageSessionMinutes: number;
+  uniqueCounterpartCount: number;
+}

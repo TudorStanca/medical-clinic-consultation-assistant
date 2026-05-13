@@ -190,12 +190,18 @@ const SidebarContent = ({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box
+        component={Link}
+        to="/"
         sx={{
           px: "18px",
           py: "20px",
           pb: "14px",
           borderBottom: `1px solid ${T.border}`,
           flexShrink: 0,
+          textDecoration: "none",
+          display: "block",
+          "&:hover": { opacity: 0.8 },
+          transition: "opacity .15s",
         }}
       >
         <MediScribeLogo size={26} color={T.text} accent={T.accent} />
@@ -285,7 +291,11 @@ const Topbar = ({ onMobileMenuOpen }: { onMobileMenuOpen: () => void }) => {
             {header.title}
           </Typography>
         ) : (
-          <Box sx={{ display: { xs: "flex", sm: "none" } }}>
+          <Box
+            component={Link}
+            to="/"
+            sx={{ display: { xs: "flex", sm: "none" }, textDecoration: "none" }}
+          >
             <MediScribeLogo size={22} color={T.text} accent={T.accent} />
           </Box>
         )}

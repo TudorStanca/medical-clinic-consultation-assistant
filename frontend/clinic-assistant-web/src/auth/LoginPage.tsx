@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import useAuth from "@/auth/useAuth";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import MediScribeLogo from "@/shared/components/MediScribeLogo";
@@ -213,8 +213,8 @@ const LoginPage = () => {
               fontSize: "0.75rem",
             }}
           >
-            <LockOutlinedIcon sx={{ fontSize: 14 }} />
-            <span>Conexiune criptată · datele rămân la clinică</span>
+            <AutoAwesomeOutlinedIcon sx={{ fontSize: 14 }} />
+            <span>Înregistrare audio · Transcriere automată · Scrisori medicale</span>
           </Box>
         </Box>
       </Box>

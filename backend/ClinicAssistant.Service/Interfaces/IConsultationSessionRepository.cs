@@ -17,4 +17,13 @@ public interface IConsultationSessionRepository
     Task<int> MarkActiveAsInterruptedAsync(CancellationToken ct = default);
     Task DeleteAsync(ConsultationSession session);
     Task<int> CountByDoctorAsync(string doctorId);
+    Task<int> CountByDoctorThisWeekAsync(string doctorId);
+    Task<int> CountUniquePatientsByDoctorAsync(string doctorId);
+    Task<int> GetAverageSessionMinutesAsync(string doctorId);
+    Task<int> CountThisWeekGlobalAsync();
+    Task<int> CountThisWeekByPatientAsync(string patientId);
+    Task<int> CountUniquePatientsGlobalAsync();
+    Task<int> CountUniqueDoctorsByPatientAsync(string patientId);
+    Task<int> GetAverageSessionMinutesGlobalAsync();
+    Task<int> GetAverageSessionMinutesByPatientAsync(string patientId);
 }

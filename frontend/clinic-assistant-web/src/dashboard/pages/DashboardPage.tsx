@@ -21,7 +21,7 @@ import useAuth from "@/auth/useAuth";
 import useConsultationApi from "@/consultation/useConsultationApi";
 import { usePageHeader } from "@/shared/PageHeaderContext";
 import { Roles } from "@/shared/types/enums";
-import type { SessionSummaryResponse } from "@/consultation/props";
+import type { SessionSummaryResponse, DashboardStatsResponse } from "@/consultation/props";
 import type { SessionStatusName } from "@/shared/types/enums";
 import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
 
@@ -104,11 +104,13 @@ const DashboardPage = () => {
   const { user, hasRole } = useAuth();
   const navigate = useNavigate();
   const { setHeader } = usePageHeader();
-  const { getSessionsPaged } = useConsultationApi();
+  const { getSessionsPaged, getDashboardStats } = useConsultationApi();
   const isDoctor = hasRole(Roles.Doctor);
+  const isPatient = hasRole(Roles.Patient);
 
   const [recentSessions, setRecentSessions] = useState<SessionSummaryResponse[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
+  const [stats, setStats] = useState<DashboardStatsResponse | null>(null);
 
   const todayStr = new Date().toLocaleDateString("ro-RO", {
     weekday: "long",
@@ -140,6 +142,12 @@ const DashboardPage = () => {
   }, [setHeader, user?.firstName, capitalizedToday, isDoctor, navigate]);
 
   useEffect(() => {
+    getDashboardStats()
+      .then((data) => setStats(data))
+      .catch(() => {});
+  }, [getDashboardStats]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoadingSessions(true);
     getSessionsPaged({ page: 1, pageSize: 5, sortBy: "createdAt", sortDir: "desc", search: "" })
@@ -159,11 +167,41 @@ const DashboardPage = () => {
     };
   }, [getSessionsPaged]);
 
+  const counterpartLabel = isPatient ? "Doctori consultați" : "Pacienți unici";
+
   const statCards: StatCard[] = [
-    { label: "Consultații (săpt.)", value: "—", description: "indisponibil", iconNode: <MedicalServicesOutlinedIcon sx={{ fontSize: 15 }} />, accentBg: T.accentSoft, accentColor: T.accentInk },
-    { label: "Scrisori generate", value: "—", description: "indisponibil", iconNode: <DescriptionOutlinedIcon sx={{ fontSize: 15 }} />, accentBg: T.successSoft, accentColor: T.success },
-    { label: "Timp mediu sesiune", value: "—", description: "indisponibil", iconNode: <AccessTimeOutlinedIcon sx={{ fontSize: 15 }} />, accentBg: T.warmSoft, accentColor: T.warm },
-    { label: "Pacienți unici", value: "—", description: "indisponibil", iconNode: <PeopleOutlinedIcon sx={{ fontSize: 15 }} />, accentBg: T.surfaceAlt, accentColor: T.textMuted },
+    {
+      label: "Consultații (săpt.)",
+      value: stats ? String(stats.weeklyConsultationCount) : "—",
+      description: stats ? "această săptămână" : "indisponibil",
+      iconNode: <MedicalServicesOutlinedIcon sx={{ fontSize: 15 }} />,
+      accentBg: T.accentSoft,
+      accentColor: T.accentInk,
+    },
+    {
+      label: "Scrisori generate",
+      value: stats ? String(stats.totalLetterCount) : "—",
+      description: stats ? "total" : "indisponibil",
+      iconNode: <DescriptionOutlinedIcon sx={{ fontSize: 15 }} />,
+      accentBg: T.successSoft,
+      accentColor: T.success,
+    },
+    {
+      label: "Timp mediu sesiune",
+      value: stats && stats.averageSessionMinutes > 0 ? `${stats.averageSessionMinutes} min` : "—",
+      description: stats && stats.averageSessionMinutes > 0 ? "din sesiuni finalizate" : "indisponibil",
+      iconNode: <AccessTimeOutlinedIcon sx={{ fontSize: 15 }} />,
+      accentBg: T.warmSoft,
+      accentColor: T.warm,
+    },
+    {
+      label: counterpartLabel,
+      value: stats ? String(stats.uniqueCounterpartCount) : "—",
+      description: stats ? "total" : "indisponibil",
+      iconNode: <PeopleOutlinedIcon sx={{ fontSize: 15 }} />,
+      accentBg: T.surfaceAlt,
+      accentColor: T.textMuted,
+    },
   ];
 
   return (

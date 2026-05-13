@@ -14,6 +14,7 @@ namespace ClinicAssistant.Service;
 
 public class ConsultationSessionService(
     IConsultationSessionRepository sessionRepo,
+    IMedicalLetterRepository letterRepo,
     ITranscriptPublisher publisher,
     IAudioTranscriber transcriber,
     IMapper mapper,
@@ -22,6 +23,7 @@ public class ConsultationSessionService(
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(ConsultationSessionService));
     private readonly IConsultationSessionRepository _sessionRepo = sessionRepo;
+    private readonly IMedicalLetterRepository _letterRepo = letterRepo;
     private readonly ITranscriptPublisher _publisher = publisher;
     private readonly IAudioTranscriber _transcriber = transcriber;
     private readonly IMapper _mapper = mapper;
@@ -153,6 +155,40 @@ public class ConsultationSessionService(
         }
 
         await _sessionRepo.DeleteAsync(session);
+    }
+
+    public async Task<DashboardStatsResponseDTO> GetDashboardStatsAsync(string userId, IEnumerable<string> roles)
+    {
+        _logger.Info($"Getting dashboard stats for user={userId}");
+
+        var roleList = roles.ToList();
+
+        if (roleList.Contains(Roles.Admin))
+        {
+            var weekly = await _sessionRepo.CountThisWeekGlobalAsync();
+            var letters = await _letterRepo.CountGlobalAsync();
+            var avg = await _sessionRepo.GetAverageSessionMinutesGlobalAsync();
+            var uniquePatients = await _sessionRepo.CountUniquePatientsGlobalAsync();
+
+            return new DashboardStatsResponseDTO(weekly, letters, avg, uniquePatients);
+        }
+
+        if (roleList.Contains(Roles.Patient))
+        {
+            var weekly = await _sessionRepo.CountThisWeekByPatientAsync(userId);
+            var letters = await _letterRepo.CountByPatientAsync(userId);
+            var avg = await _sessionRepo.GetAverageSessionMinutesByPatientAsync(userId);
+            var uniqueDoctors = await _sessionRepo.CountUniqueDoctorsByPatientAsync(userId);
+
+            return new DashboardStatsResponseDTO(weekly, letters, avg, uniqueDoctors);
+        }
+
+        var weeklyDoc = await _sessionRepo.CountByDoctorThisWeekAsync(userId);
+        var lettersDoc = await _letterRepo.CountByDoctorAsync(userId);
+        var avgDoc = await _sessionRepo.GetAverageSessionMinutesAsync(userId);
+        var uniquePatientsDoc = await _sessionRepo.CountUniquePatientsByDoctorAsync(userId);
+
+        return new DashboardStatsResponseDTO(weeklyDoc, lettersDoc, avgDoc, uniquePatientsDoc);
     }
 
     public async Task UpdateStatusAsync(Guid sessionId, SessionStatus status)

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import useConsultationApi from "@/consultation/useConsultationApi";
 import PatientPicker from "@/consultation/components/PatientPicker";
 import { extractErrorMessages } from "@/core/errorMessages";
@@ -136,16 +136,15 @@ const NewConsultationPage = () => {
               gap: "10px",
               p: "14px",
               borderRadius: "10px",
-              background: T.warningSoft,
-              color: T.warning,
+              background: T.accentSoft,
+              color: T.accent,
               fontSize: "0.75rem",
               lineHeight: 1.55,
             }}
           >
-            <ShieldOutlinedIcon sx={{ fontSize: 18, flexShrink: 0, mt: "1px" }} />
+            <InfoOutlinedIcon sx={{ fontSize: 18, flexShrink: 0, mt: "1px" }} />
             <span>
-              Pacientul va fi notificat despre înregistrarea audio la începutul sesiunii. Confirmă
-              verbal consimțământul înainte de Pornire.
+              Consultația va fi transcrisă automat. Scrisoarea medicală se generează la finalul sesiunii.
             </span>
           </Box>
         )}
