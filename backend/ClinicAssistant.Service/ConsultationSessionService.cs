@@ -66,7 +66,7 @@ public class ConsultationSessionService(
     {
         _logger.Info($"Getting paged sessions for user={userId}. Page={query.Page} PageSize={query.PageSize} Search={query.Search}");
 
-        var (items, total) = await _sessionRepo.GetPagedForUserAsync(userId, roles, query.Page, query.PageSize, query.Search, query.SortBy, query.SortDir);
+        var (items, total) = await _sessionRepo.GetPagedForUserAsync(userId, roles, query.Page, query.PageSize, query.Search, query.SortBy, query.SortDir, query.DateFrom, query.DateTo);
 
         return new PagedResponseDTO<SessionSummaryResponseDTO>(
             items.Select(s => _mapper.Map<SessionSummaryResponseDTO>(s)),

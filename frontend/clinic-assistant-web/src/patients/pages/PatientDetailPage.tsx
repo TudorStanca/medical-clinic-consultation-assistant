@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Avatar,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Divider,
   Typography,
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import LockResetIcon from "@mui/icons-material/LockReset";
+import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
+import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import usePatientApi from "@/patients/usePatientApi";
 import ResetPasswordDialog from "@/auth/components/ResetPasswordDialog";
 import DocumentsPanel from "@/documents/components/DocumentsPanel";
@@ -47,6 +50,20 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
   >
     {children}
   </Typography>
+);
+
+const InfoCell = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
+  <Box sx={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+    <Box sx={{ color: T.accent, mt: "1px", flexShrink: 0, "& svg": { fontSize: 18 } }}>{icon}</Box>
+    <Box>
+      <Typography sx={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4, color: T.textMuted, lineHeight: 1.2 }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 13, fontWeight: 500, color: T.text, mt: "2px" }}>
+        {value}
+      </Typography>
+    </Box>
+  </Box>
 );
 
 const InfoRow = ({ label, value }: { label: string; value: string }) => (
@@ -114,9 +131,6 @@ const PatientDetailPage = () => {
   }
 
   const initials = `${patient.firstName[0] ?? ""}${patient.lastName[0] ?? ""}`.toUpperCase();
-  const age = Math.floor(
-    (Date.now() - new Date(patient.birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-  );
 
   return (
     <Box>
@@ -129,75 +143,83 @@ const PatientDetailPage = () => {
       </Button>
 
       {/* Profile header card */}
-      <Box
-        sx={{
-          ...cardSx,
-          display: "flex",
-          alignItems: "center",
-          gap: "20px",
-          mb: "16px",
-          flexWrap: "wrap",
-        }}
-      >
-        <Avatar
+      <Box sx={{ ...cardSx, mb: "16px" }}>
+        <Box
           sx={{
-            width: 68,
-            height: 68,
-            bgcolor: T.accentSoft,
-            color: T.accentInk,
-            fontSize: "1.5rem",
-            fontWeight: 600,
-            fontFamily: MS_FONTS.sans,
-            flexShrink: 0,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "20px",
+            mb: "20px",
+            flexWrap: "wrap",
           }}
         >
-          {initials}
-        </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
+          <Avatar
             sx={{
-              fontSize: "1.25rem",
+              width: 68,
+              height: 68,
+              bgcolor: T.accentSoft,
+              color: T.accentInk,
+              fontSize: "1.5rem",
               fontWeight: 600,
-              color: T.text,
               fontFamily: MS_FONTS.sans,
-              letterSpacing: "-0.2px",
+              flexShrink: 0,
             }}
           >
-            {patient.lastName} {patient.firstName}
-          </Typography>
-          <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted, mt: "2px" }}>
-            {patient.email}
-          </Typography>
-          <Box sx={{ display: "flex", gap: "6px", mt: "10px", flexWrap: "wrap" }}>
-            <Chip label={SexLabels[patient.sex]} size="small" variant="outlined" />
-            <Chip label={`${age} ani`} size="small" variant="outlined" />
-            <Chip
-              label={new Date(patient.birthDate).toLocaleDateString("ro-RO")}
-              size="small"
-              variant="outlined"
-            />
+            {initials}
+          </Avatar>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontFamily: MS_FONTS.serif,
+                fontSize: "1.75rem",
+                fontWeight: 400,
+                color: T.text,
+                letterSpacing: "-0.4px",
+                lineHeight: 1.2,
+              }}
+            >
+              {patient.lastName} {patient.firstName}
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            {hasRole(Roles.Admin) && (
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={<LockResetIcon />}
+                onClick={() => setResetPasswordOpen(true)}
+              >
+                Resetează parola
+              </Button>
+            )}
+            {hasRole(Roles.Doctor) && (
+              <Button
+                variant="contained"
+                startIcon={<AddCircleOutlineIcon />}
+                onClick={() => navigate(`/consultations/new?patientId=${patient.id}`)}
+              >
+                Consultație nouă
+              </Button>
+            )}
           </Box>
         </Box>
-        <Box sx={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {hasRole(Roles.Admin) && (
-            <Button
-              variant="outlined"
-              color="warning"
-              startIcon={<LockResetIcon />}
-              onClick={() => setResetPasswordOpen(true)}
-            >
-              Resetează parola
-            </Button>
-          )}
-          {hasRole(Roles.Doctor) && (
-            <Button
-              variant="contained"
-              startIcon={<AddCircleOutlineIcon />}
-              onClick={() => navigate(`/consultations/new?patientId=${patient.id}`)}
-            >
-              Consultație nouă
-            </Button>
-          )}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+            gap: "16px",
+            pt: "16px",
+            borderTop: `1px solid ${T.border}`,
+          }}
+        >
+          <InfoCell icon={<MailOutlinedIcon />} label="Email" value={patient.email} />
+          <InfoCell icon={<PhoneOutlinedIcon />} label="Telefon" value={patient.phoneNumber ?? "—"} />
+          <InfoCell icon={<PlaceOutlinedIcon />} label="Adresă" value={patient.address ?? "—"} />
+          <InfoCell
+            icon={<CalendarTodayOutlinedIcon />}
+            label="Data nașterii"
+            value={new Date(patient.birthDate).toLocaleDateString("ro-RO")}
+          />
         </Box>
       </Box>
 

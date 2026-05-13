@@ -62,7 +62,7 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
             .ToListAsync();
     }
 
-    public async Task<(IEnumerable<ConsultationSession> Items, int Total)> GetPagedForUserAsync(string userId, IEnumerable<string> roles, int page, int pageSize, string? search, string? sortBy, string? sortDir)
+    public async Task<(IEnumerable<ConsultationSession> Items, int Total)> GetPagedForUserAsync(string userId, IEnumerable<string> roles, int page, int pageSize, string? search, string? sortBy, string? sortDir, DateTime? dateFrom, DateTime? dateTo)
     {
         var roleList = roles.ToList();
         var query = _context.ConsultationSessions
@@ -86,6 +86,16 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
             query = query.Where(s =>
                 (s.Patient.FirstName + " " + s.Patient.LastName).ToLower().Contains(term) ||
                 (s.Doctor.FirstName + " " + s.Doctor.LastName).ToLower().Contains(term));
+        }
+
+        if (dateFrom.HasValue)
+        {
+            query = query.Where(s => s.CreatedAt >= dateFrom.Value);
+        }
+
+        if (dateTo.HasValue)
+        {
+            query = query.Where(s => s.CreatedAt < dateTo.Value);
         }
 
         var desc = sortDir?.ToLower() == "desc";

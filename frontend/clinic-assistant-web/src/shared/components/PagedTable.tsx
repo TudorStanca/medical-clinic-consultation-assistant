@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Box,
   CircularProgress,
@@ -36,6 +37,7 @@ interface Props<T> {
   defaultSortBy?: string;
   defaultSortDir?: "asc" | "desc";
   rowKey: (row: T) => string;
+  extraFilters?: ReactNode;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -48,6 +50,7 @@ function PagedTable<T>({
   defaultSortBy,
   defaultSortDir = "asc",
   rowKey,
+  extraFilters,
 }: Props<T>) {
   const [rows, setRows] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
@@ -103,7 +106,8 @@ function PagedTable<T>({
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: "16px" }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: "16px", gap: "12px", flexWrap: "wrap" }}>
+        {extraFilters && <Box sx={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>{extraFilters}</Box>}
         <TextField
           size="small"
           placeholder={searchPlaceholder}

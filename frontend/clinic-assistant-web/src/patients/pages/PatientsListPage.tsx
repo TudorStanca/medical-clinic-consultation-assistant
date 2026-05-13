@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Avatar,
   Box,
   Button,
   Dialog,
@@ -34,11 +35,29 @@ const columns: Column<PatientResponseDTO>[] = [
     key: "lastName",
     label: "Nume",
     sortable: true,
-    render: (p) => (
-      <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: T.text }}>
-        {p.lastName} {p.firstName}
-      </Typography>
-    ),
+    render: (p) => {
+      const initials = `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase();
+      const isAccent = p.id.charCodeAt(0) % 2 === 0;
+      return (
+        <Box sx={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <Avatar
+            sx={{
+              width: 32,
+              height: 32,
+              bgcolor: isAccent ? T.accentSoft : T.warmSoft,
+              color: isAccent ? T.accentInk : T.warm,
+              fontSize: "0.7rem",
+              fontWeight: 600,
+            }}
+          >
+            {initials}
+          </Avatar>
+          <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: T.text }}>
+            {p.lastName} {p.firstName}
+          </Typography>
+        </Box>
+      );
+    },
   },
   {
     key: "email",

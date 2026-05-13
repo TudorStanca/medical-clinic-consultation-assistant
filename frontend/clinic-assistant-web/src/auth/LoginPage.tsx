@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import useAuth from "@/auth/useAuth";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import MediScribeLogo from "@/shared/components/MediScribeLogo";
@@ -37,90 +38,185 @@ const LoginPage = () => {
     <Box
       sx={{
         minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
         background: T.bg,
-        px: 2,
       }}
     >
+      {/* Brand panel — hidden on mobile */}
       <Box
         sx={{
-          width: "100%",
-          maxWidth: 380,
-          background: T.surface,
-          border: `1px solid ${T.border}`,
-          borderRadius: "16px",
-          p: "40px 36px",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.06)",
+          display: { xs: "none", md: "flex" },
+          flexDirection: "column",
+          position: "relative",
+          overflow: "hidden",
+          background: `linear-gradient(160deg, ${T.accent} 0%, ${T.accentInk} 100%)`,
+          p: "56px 64px",
         }}
       >
-        <Box sx={{ display: "flex", justifyContent: "center", mb: "28px" }}>
-          <MediScribeLogo size={32} color={T.text} accent={T.accent} />
+        {/* Decorative wave */}
+        <Box
+          component="svg"
+          viewBox="0 0 800 600"
+          sx={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            opacity: 0.12,
+            pointerEvents: "none",
+          }}
+        >
+          <path
+            d="M0 300 Q100 150 200 300 T400 300 T600 300 T800 300 V600 H0 Z"
+            fill="white"
+          />
+          <path
+            d="M0 400 Q100 250 200 400 T400 400 T600 400 T800 400 V600 H0 Z"
+            fill="white"
+          />
         </Box>
 
-        <Typography
-          variant="h3"
-          sx={{
-            fontFamily: MS_FONTS.serif,
-            fontWeight: 400,
-            fontSize: "1.75rem",
-            letterSpacing: -0.4,
-            color: T.text,
-            mb: "6px",
-            textAlign: "center",
-          }}
-        >
-          Bun venit
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: "0.875rem",
-            color: T.textMuted,
-            textAlign: "center",
-            mb: "28px",
-            lineHeight: 1.5,
-          }}
-        >
-          Autentifică-te pentru a continua în MediScribe
-        </Typography>
+        {/* Logo */}
+        <Box sx={{ position: "relative" }}>
+          <MediScribeLogo size={32} color="white" accent="rgba(255,255,255,0.3)" />
+        </Box>
 
-        <ErrorBanner messages={errors} />
-
-        <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          <TextField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            fullWidth
-            autoComplete="email"
-          />
-          <TextField
-            label="Parolă"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            fullWidth
-            autoComplete="current-password"
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            disabled={loading}
-            size="large"
-            sx={{ mt: "4px", py: "12px", fontSize: "0.9375rem" }}
+        {/* Tagline */}
+        <Box sx={{ mt: "auto", position: "relative" }}>
+          <Typography
+            sx={{
+              fontFamily: MS_FONTS.serif,
+              fontSize: "2.5rem",
+              fontWeight: 400,
+              lineHeight: 1.1,
+              letterSpacing: "-0.6px",
+              color: "white",
+              mb: "20px",
+            }}
           >
-            {loading ? <CircularProgress size={22} color="inherit" /> : "Autentificare"}
-          </Button>
+            Mai puțin scris.
+            <br />
+            Mai mult timp
+            <br />
+            cu pacientul.
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.9375rem",
+              color: "rgba(255,255,255,0.82)",
+              lineHeight: 1.6,
+              maxWidth: 380,
+            }}
+          >
+            Înregistrează consultația, AI-ul ascultă și pregătește scrisoarea medicală. Tu doar
+            revizuiești și semnezi.
+          </Typography>
         </Box>
+      </Box>
 
-        <Typography sx={{ fontSize: "0.75rem", color: T.textDim, textAlign: "center", mt: "20px", lineHeight: 1.5 }}>
-          Ai probleme cu autentificarea? Contactează administratorul clinicii.
-        </Typography>
+      {/* Form panel */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: { xs: "32px 24px", md: "56px 64px" },
+        }}
+      >
+        <Box sx={{ width: "100%", maxWidth: 380 }}>
+          {/* Mobile logo */}
+          <Box sx={{ display: { xs: "flex", md: "none" }, justifyContent: "center", mb: "32px" }}>
+            <MediScribeLogo size={30} color={T.text} accent={T.accent} />
+          </Box>
+
+          <Typography
+            sx={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: T.textMuted,
+              mb: "6px",
+            }}
+          >
+            Bun venit înapoi
+          </Typography>
+          <Typography
+            sx={{
+              fontFamily: MS_FONTS.serif,
+              fontSize: "2rem",
+              fontWeight: 400,
+              letterSpacing: "-0.4px",
+              color: T.text,
+              mb: "6px",
+            }}
+          >
+            Autentificare
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "0.875rem",
+              color: T.textMuted,
+              mb: "32px",
+              lineHeight: 1.5,
+            }}
+          >
+            Folosește contul tău MediScribe pentru a continua.
+          </Typography>
+
+          <ErrorBanner messages={errors} />
+
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{ display: "flex", flexDirection: "column", gap: "14px" }}
+          >
+            <TextField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              fullWidth
+              autoComplete="email"
+            />
+            <TextField
+              label="Parolă"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              fullWidth
+              autoComplete="current-password"
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={loading}
+              size="large"
+              sx={{ mt: "4px", py: "12px", fontSize: "0.9375rem" }}
+            >
+              {loading ? <CircularProgress size={22} color="inherit" /> : "Autentificare"}
+            </Button>
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              mt: "28px",
+              color: T.textDim,
+              fontSize: "0.75rem",
+            }}
+          >
+            <LockOutlinedIcon sx={{ fontSize: 14 }} />
+            <span>Conexiune criptată · datele rămân la clinică</span>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );
