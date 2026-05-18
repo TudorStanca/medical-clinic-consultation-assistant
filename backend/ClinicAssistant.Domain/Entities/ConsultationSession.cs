@@ -9,6 +9,7 @@ public class ConsultationSession
     public required string PatientId { get; set; }
     public SessionStatus Status { get; private set; } = SessionStatus.Created;
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime? FinishedAt { get; private set; }
     public string? AudioFilePath { get; set; }
 
     public Doctor Doctor { get; set; } = null!;
@@ -21,9 +22,24 @@ public class ConsultationSession
 
     public void MarkRecording() => Status = SessionStatus.Recording;
     public void MarkProcessing() => Status = SessionStatus.Processing;
-    public void MarkDone() => Status = SessionStatus.Done;
-    public void MarkFailed() => Status = SessionStatus.Failed;
-    public void MarkInterrupted() => Status = SessionStatus.Interrupted;
+
+    public void MarkDone()
+    {
+        Status = SessionStatus.Done;
+        FinishedAt = DateTime.UtcNow;
+    }
+
+    public void MarkFailed()
+    {
+        Status = SessionStatus.Failed;
+        FinishedAt = DateTime.UtcNow;
+    }
+
+    public void MarkInterrupted()
+    {
+        Status = SessionStatus.Interrupted;
+        FinishedAt = DateTime.UtcNow;
+    }
 
     public void AddSegments(IEnumerable<TranscriptSegment> segments) =>
         _segments.AddRange(segments);

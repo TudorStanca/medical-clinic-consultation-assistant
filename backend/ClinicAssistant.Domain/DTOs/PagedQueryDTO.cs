@@ -7,4 +7,6 @@ public class PagedQueryDTO
     public string? Search { get; set; }
     public string? SortBy { get; set; }
     public string SortDir { get; set; } = "asc";
+    public DateTime? DateFrom { get; set; }
+    public DateTime? DateTo { get; set; }
 }

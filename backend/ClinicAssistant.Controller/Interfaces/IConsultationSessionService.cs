@@ -12,4 +12,5 @@ public interface IConsultationSessionService
     Task StopSessionAsync(Guid sessionId, byte[] pcmData, CancellationToken ct);
     Task UpdateStatusAsync(Guid sessionId, SessionStatus status);
     Task DeleteSessionAsync(Guid sessionId, string requestingDoctorId);
+    Task<DashboardStatsResponseDTO> GetDashboardStatsAsync(string userId, IEnumerable<string> roles);
 }

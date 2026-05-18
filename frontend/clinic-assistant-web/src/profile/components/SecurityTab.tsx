@@ -2,7 +2,7 @@ import { Box } from "@mui/material";
 import ChangePasswordForm from "@/auth/components/ChangePasswordForm";
 
 const SecurityTab = () => (
-  <Box sx={{ maxWidth: 480 }}>
+  <Box sx={{ maxWidth: 480, mx: "auto" }}>
     <ChangePasswordForm />
   </Box>
 );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Box,
   CircularProgress,
@@ -15,7 +16,11 @@ import {
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
 import type { PagedQuery, PagedResponse } from "@/shared/types/api";
+
+const T = MS_LIGHT;
 
 export interface Column<T> {
   key: string;
@@ -32,6 +37,7 @@ interface Props<T> {
   defaultSortBy?: string;
   defaultSortDir?: "asc" | "desc";
   rowKey: (row: T) => string;
+  extraFilters?: ReactNode;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -44,6 +50,7 @@ function PagedTable<T>({
   defaultSortBy,
   defaultSortDir = "asc",
   rowKey,
+  extraFilters,
 }: Props<T>) {
   const [rows, setRows] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
@@ -99,28 +106,31 @@ function PagedTable<T>({
 
   return (
     <Box>
-      <TextField
-        size="small"
-        placeholder={searchPlaceholder}
-        value={search}
-        onChange={(e) => handleSearchChange(e.target.value)}
-        sx={{ mb: 2, width: 280 }}
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: "16px", gap: "12px", flexWrap: "wrap" }}>
+        {extraFilters && <Box sx={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>{extraFilters}</Box>}
+        <TextField
+          size="small"
+          placeholder={searchPlaceholder}
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          sx={{ width: 260 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: T.textDim }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      </Box>
       {error && (
         <Typography color="error" variant="body2" mb={1}>
           {error}
         </Typography>
       )}
-      <TableContainer>
+      <TableContainer sx={{ borderRadius: "10px", border: `1px solid ${T.border}`, overflow: "hidden" }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -144,16 +154,25 @@ function PagedTable<T>({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} align="center" sx={{ py: 4 }}>
-                  <CircularProgress size={24} />
+                <TableCell colSpan={columns.length} sx={{ border: "none", py: "48px", textAlign: "center" }}>
+                  <CircularProgress size={28} sx={{ color: T.accent }} />
                 </TableCell>
               </TableRow>
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} align="center" sx={{ py: 4 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Niciun rezultat.
-                  </Typography>
+                <TableCell colSpan={columns.length} sx={{ border: "none", py: "48px" }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                    <SearchOffIcon sx={{ fontSize: 44, color: T.border }} />
+                    <Typography
+                      sx={{
+                        color: T.textMuted,
+                        fontSize: "0.875rem",
+                        fontFamily: MS_FONTS.sans,
+                      }}
+                    >
+                      {search ? `Niciun rezultat pentru „${search}"` : "Nu există înregistrări."}
+                    </Typography>
+                  </Box>
                 </TableCell>
               </TableRow>
             ) : (
@@ -186,6 +205,13 @@ function PagedTable<T>({
         rowsPerPageOptions={PAGE_SIZE_OPTIONS}
         labelRowsPerPage="Rânduri pe pagină:"
         labelDisplayedRows={({ from, to, count }) => `${from}–${to} din ${count}`}
+        sx={{
+          "& .MuiTablePagination-toolbar": { px: 0 },
+          "& .MuiTablePagination-displayedRows, & .MuiTablePagination-selectLabel": {
+            fontSize: "0.8125rem",
+            color: T.textMuted,
+          },
+        }}
       />
     </Box>
   );

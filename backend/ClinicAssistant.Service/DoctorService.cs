@@ -69,7 +69,10 @@ public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<
 
         var consultationCount = await _sessionRepo.CountByDoctorAsync(doctorId);
         var letterCount = await _letterRepo.CountByDoctorAsync(doctorId);
+        var weeklyCount = await _sessionRepo.CountByDoctorThisWeekAsync(doctorId);
+        var uniquePatients = await _sessionRepo.CountUniquePatientsByDoctorAsync(doctorId);
+        var avgMinutes = await _sessionRepo.GetAverageSessionMinutesAsync(doctorId);
 
-        return new DoctorStatsResponseDTO(consultationCount, letterCount);
+        return new DoctorStatsResponseDTO(consultationCount, letterCount, weeklyCount, uniquePatients, avgMinutes);
     }
 }

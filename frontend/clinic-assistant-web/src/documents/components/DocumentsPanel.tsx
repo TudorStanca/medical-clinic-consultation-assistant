@@ -101,7 +101,7 @@ const DocumentsPanel = ({ patientId, sessionId, readOnly = false }: Props) => {
       {loading ? (
         <CircularProgress size={20} />
       ) : (
-        <List dense disablePadding>
+        <List dense disablePadding sx={{ maxHeight: 280, overflowY: "auto" }}>
           {visibleDocs.map((doc) => (
             <ListItem
               key={doc.id}

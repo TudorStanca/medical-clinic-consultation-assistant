@@ -1,12 +1,46 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import useNotification from "@/shared/NotificationContext";
 import type { MedicalLetterResponseDTO } from "@/medicalLetter/props";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
+
+const T = MS_LIGHT;
+
+const FieldLabel = ({ children }: { children: string }) => (
+  <Typography
+    sx={{
+      fontSize: "0.71875rem",
+      fontWeight: 600,
+      letterSpacing: "0.07em",
+      textTransform: "uppercase",
+      color: T.textMuted,
+      fontFamily: MS_FONTS.sans,
+      mb: "6px",
+    }}
+  >
+    {children}
+  </Typography>
+);
+
+const editableSx = {
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "10px",
+    "& fieldset": { borderStyle: "dashed", borderColor: T.accent },
+    "&:hover fieldset": { borderColor: T.accentInk },
+    "&.Mui-focused fieldset": { borderStyle: "solid", borderColor: T.accentInk },
+  },
+} as const;
+
+const readOnlySx = {
+  "& .MuiOutlinedInput-root": { borderRadius: "10px" },
+} as const;
 
 interface Props {
   letter: MedicalLetterResponseDTO;
@@ -16,6 +50,7 @@ interface Props {
 
 const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
   const { updateLetter, downloadLetterPdf } = useMedicalLetterApi();
+  const navigate = useNavigate();
   const notify = useNotification();
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -73,65 +108,98 @@ const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
     }
   };
 
+  const fields: { label: string; value: string; setter: (v: string) => void; multiline: boolean }[] = [
+    { label: "Localitate", value: location, setter: setLocation, multiline: false },
+    { label: "Antecedente", value: antecedente, setter: setAntecedente, multiline: true },
+    { label: "Simptome", value: simptome, setter: setSimptome, multiline: true },
+    { label: "Examen clinic", value: clinice, setter: setCLinice, multiline: true },
+    { label: "Examen paraclinic", value: paraclinice, setter: setParaclinice, multiline: true },
+    { label: "Diagnostic", value: diagnostic, setter: setDiagnostic, multiline: true },
+    { label: "Recomandări", value: recomandari, setter: setRecomandari, multiline: true },
+  ];
+
   return (
-    <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-        <Typography variant="subtitle1">
-          {letter.letterType} — {letter.location}
+    <Box sx={{ maxWidth: 720 }}>
+      {/* Header */}
+      <Box sx={{ mb: "24px" }}>
+        <Typography
+          sx={{
+            fontFamily: MS_FONTS.serif,
+            fontSize: "1.25rem",
+            fontWeight: 500,
+            color: T.text,
+            lineHeight: 1.3,
+          }}
+        >
+          {letter.letterType}
         </Typography>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={pdfLoading ? <CircularProgress size={14} color="inherit" /> : <PictureAsPdfIcon />}
-            disabled={loading || pdfLoading}
-            onClick={handleDownloadPdf}
-          >
-            Descarcă PDF
-          </Button>
-          {!readOnly && (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
-              disabled={loading || pdfLoading}
-              onClick={handleSave}
-            >
-              Salvează
-            </Button>
-          )}
-        </Box>
+        <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted, mt: "4px" }}>
+          {letter.doctor.firstName} {letter.doctor.lastName} · {letter.location} ·{" "}
+          {new Date(letter.writtenAt).toLocaleDateString("ro-RO")}
+          {letter.lastEditedAt ? " (editată)" : ""}
+        </Typography>
       </Box>
+
       <ErrorBanner messages={errors} />
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <TextField
-          label="Localitate"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          disabled={readOnly}
-          fullWidth
-          size="small"
-        />
-        {[
-          { label: "Antecedente", value: antecedente, setter: setAntecedente },
-          { label: "Simptome", value: simptome, setter: setSimptome },
-          { label: "Examen clinic", value: clinice, setter: setCLinice },
-          { label: "Examen paraclinic", value: paraclinice, setter: setParaclinice },
-          { label: "Diagnostic", value: diagnostic, setter: setDiagnostic },
-          { label: "Recomandări", value: recomandari, setter: setRecomandari },
-        ].map(({ label, value, setter }) => (
-          <TextField
-            key={label}
-            label={label}
-            value={value}
-            onChange={(e) => setter(e.target.value)}
-            disabled={readOnly}
-            multiline
-            minRows={2}
-            fullWidth
-            size="small"
-          />
+
+      {/* Fields */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        {fields.map(({ label, value, setter, multiline }) => (
+          <Box key={label}>
+            <FieldLabel>{label}</FieldLabel>
+            <TextField
+              value={value}
+              onChange={(e) => setter(e.target.value)}
+              disabled={readOnly}
+              fullWidth
+              size="small"
+              multiline={multiline}
+              minRows={multiline ? 2 : undefined}
+              sx={readOnly ? readOnlySx : editableSx}
+            />
+          </Box>
         ))}
+      </Box>
+
+      {/* Actions */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: "10px",
+          flexWrap: "wrap",
+          alignItems: "center",
+          mt: "28px",
+          pt: "20px",
+          borderTop: `1px solid ${T.border}`,
+        }}
+      >
+        <Button
+          variant="outlined"
+          startIcon={pdfLoading ? <CircularProgress size={14} color="inherit" /> : <PictureAsPdfIcon />}
+          disabled={loading || pdfLoading}
+          onClick={handleDownloadPdf}
+        >
+          Descarcă PDF
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<OpenInNewIcon />}
+          disabled={loading || pdfLoading}
+          onClick={() => navigate(`/letters/${letter.id}/preview`)}
+        >
+          Previzualizare
+        </Button>
+        {!readOnly && (
+          <Button
+            variant="contained"
+            startIcon={loading ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
+            disabled={loading || pdfLoading}
+            onClick={handleSave}
+            sx={{ ml: "auto" }}
+          >
+            Salvează
+          </Button>
+        )}
       </Box>
     </Box>
   );

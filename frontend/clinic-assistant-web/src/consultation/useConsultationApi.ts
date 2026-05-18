@@ -5,6 +5,7 @@ import type {
   SessionDetailResponse,
   SessionSummaryResponse,
   TranscriptSegment,
+  DashboardStatsResponse,
 } from "@/consultation/props";
 import type { SessionStatusName } from "@/shared/types/enums";
 import { SessionStatus } from "@/shared/types/enums";
@@ -67,7 +68,13 @@ const useConsultationApi = () => {
     [axios]
   );
 
-  return { createSession, getSessionById, getTranscript, patchStatus, getSessionsPaged, deleteSession };
+  const getDashboardStats = useCallback(async (): Promise<DashboardStatsResponse> => {
+    const res = await axios.get<DashboardStatsResponse>(`${sessionUrl}/stats`);
+
+    return res.data;
+  }, [axios]);
+
+  return { createSession, getSessionById, getTranscript, patchStatus, getSessionsPaged, deleteSession, getDashboardStats };
 };
 
 export default useConsultationApi;

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -8,10 +9,14 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import LockResetIcon from "@mui/icons-material/LockReset";
 import useAuthApi from "@/auth/useAuthApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import useNotification from "@/shared/NotificationContext";
+import { MS_LIGHT } from "@/theme/tokens";
+
+const T = MS_LIGHT;
 
 interface Props {
   open: boolean;
@@ -74,41 +79,47 @@ const ResetPasswordDialog = ({ open, onClose, targetUserId, targetUserName }: Pr
   };
 
   return (
-    <>
-      <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
-        <DialogTitle>Resetează parola</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
-          <Typography variant="body2" color="text.secondary">
-            Setează o parolă nouă pentru <strong>{targetUserName}</strong>.
-          </Typography>
-          <ErrorBanner messages={errors} />
-          <TextField
-            label="Parolă nouă"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            fullWidth
-            autoComplete="new-password"
-          />
-          <TextField
-            label="Confirmă parola nouă"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            fullWidth
-            autoComplete="new-password"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} disabled={loading}>
-            Anulează
-          </Button>
-          <Button variant="contained" color="warning" onClick={handleSubmit} disabled={loading}>
-            Resetează
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <LockResetIcon sx={{ fontSize: 20, color: T.warning }} />
+          Resetează parola
+        </Box>
+      </DialogTitle>
+      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: "16px", pt: "8px !important" }}>
+        <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted }}>
+          Setați o parolă nouă pentru{" "}
+          <strong style={{ color: T.text }}>{targetUserName}</strong>.
+        </Typography>
+        <ErrorBanner messages={errors} />
+        <TextField
+          label="Parolă nouă"
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          fullWidth
+          autoComplete="new-password"
+          disabled={loading}
+        />
+        <TextField
+          label="Confirmă parola nouă"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          fullWidth
+          autoComplete="new-password"
+          disabled={loading}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={loading}>
+          Anulează
+        </Button>
+        <Button variant="contained" color="warning" onClick={handleSubmit} disabled={loading}>
+          Resetează
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

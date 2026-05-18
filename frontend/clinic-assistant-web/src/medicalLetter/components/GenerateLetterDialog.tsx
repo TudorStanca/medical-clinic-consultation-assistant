@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Box,
   Button,
   Checkbox,
   CircularProgress,
@@ -14,11 +15,16 @@ import {
   MenuItem,
   Select,
   TextField,
+  Typography,
 } from "@mui/material";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import type { MedicalLetterResponseDTO } from "@/medicalLetter/props";
+import { MS_LIGHT } from "@/theme/tokens";
+
+const T = MS_LIGHT;
 
 const LETTER_TYPES = ["Scrisoare medicală", "Bilet de trimitere", "Rețetă", "Raport medical"];
 
@@ -41,7 +47,12 @@ const GenerateLetterDialog = ({ open, sessionId, onGenerated, onClose }: Props) 
     setErrors([]);
     setLoading(true);
     try {
-      const letter = await createLetter({ sessionId, letterType, location, includeAllPatientDocuments: includeAllDocs });
+      const letter = await createLetter({
+        sessionId,
+        letterType,
+        location,
+        includeAllPatientDocuments: includeAllDocs,
+      });
       onGenerated(letter);
     } catch (err) {
       setErrors(extractErrorMessages(err));
@@ -52,45 +63,95 @@ const GenerateLetterDialog = ({ open, sessionId, onGenerated, onClose }: Props) 
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Generează scrisoare medicală</DialogTitle>
+      <DialogTitle>
+        <Box sx={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <AutoAwesomeIcon sx={{ fontSize: 20, color: T.accent }} />
+          Generează scrisoare medicală
+        </Box>
+      </DialogTitle>
       <DialogContent>
-        <ErrorBanner messages={errors} />
-        <FormControl fullWidth sx={{ mt: 1, mb: 2 }}>
-          <InputLabel>Tip scrisoare</InputLabel>
-          <Select value={letterType} label="Tip scrisoare" onChange={(e) => setLetterType(e.target.value)}>
-            {LETTER_TYPES.map((t) => (
-              <MenuItem key={t} value={t}>
-                {t}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <TextField
-          label="Localitate"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          fullWidth
-          required
-        />
-        <FormControl sx={{ mt: 1 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={includeAllDocs}
-                onChange={(e) => setIncludeAllDocs(e.target.checked)}
-                disabled={loading}
-              />
-            }
-            label="Include toate documentele pacientului în contextul scrisorii"
+        <Box sx={{ display: "flex", flexDirection: "column", gap: "16px", pt: "4px" }}>
+          <ErrorBanner messages={errors} />
+
+          {loading && (
+            <Box
+              sx={{
+                background: T.accentSoft,
+                border: `1px solid ${T.accent}33`,
+                borderRadius: "10px",
+                p: "14px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <CircularProgress size={18} sx={{ color: T.accent, flexShrink: 0 }} />
+              <Typography sx={{ fontSize: "0.875rem", color: T.accentInk }}>
+                Scrisoarea se generează cu ajutorul AI...
+              </Typography>
+            </Box>
+          )}
+
+          <FormControl fullWidth>
+            <InputLabel>Tip scrisoare</InputLabel>
+            <Select
+              value={letterType}
+              label="Tip scrisoare"
+              onChange={(e) => setLetterType(e.target.value)}
+              disabled={loading}
+            >
+              {LETTER_TYPES.map((t) => (
+                <MenuItem key={t} value={t}>
+                  {t}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            label="Localitate"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            fullWidth
+            required
+            disabled={loading}
           />
-          <FormHelperText>Documentele acestei consultații sunt mereu incluse.</FormHelperText>
-        </FormControl>
+
+          <FormControl>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={includeAllDocs}
+                  onChange={(e) => setIncludeAllDocs(e.target.checked)}
+                  disabled={loading}
+                  sx={{
+                    color: T.border,
+                    "&.Mui-checked": { color: T.accent },
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ fontSize: "0.875rem", color: T.text }}>
+                  Include toate documentele pacientului
+                </Typography>
+              }
+            />
+            <FormHelperText sx={{ ml: "30px", mt: "-4px" }}>
+              Documentele acestei consultații sunt mereu incluse.
+            </FormHelperText>
+          </FormControl>
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
           Anulare
         </Button>
-        <Button onClick={handleGenerate} variant="contained" disabled={!location || loading}>
+        <Button
+          onClick={handleGenerate}
+          variant="contained"
+          disabled={!location || loading}
+          startIcon={loading ? undefined : <AutoAwesomeIcon sx={{ fontSize: 16 }} />}
+        >
           {loading ? <CircularProgress size={20} color="inherit" /> : "Generează"}
         </Button>
       </DialogActions>

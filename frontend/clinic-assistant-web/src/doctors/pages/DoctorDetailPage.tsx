@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  Avatar,
   Box,
   Button,
-  Card,
-  CardContent,
+  Chip,
   CircularProgress,
-  Paper,
+  Divider,
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -20,19 +20,80 @@ import { extractErrorMessages } from "@/core/errorMessages";
 import useNotification from "@/shared/NotificationContext";
 import type { DoctorResponseDTO } from "@/doctors/props";
 import type { DoctorStatsResponseDTO } from "@/profile/props";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
+import { usePageHeader } from "@/shared/PageHeaderContext";
 
-const StatCard = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) => (
-  <Card variant="outlined" sx={{ flex: 1, minWidth: 160 }}>
-    <CardContent sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, py: 3 }}>
-      {icon}
-      <Typography variant="h4" fontWeight="bold">
-        {value}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" textAlign="center">
-        {label}
-      </Typography>
-    </CardContent>
-  </Card>
+const T = MS_LIGHT;
+
+const cardSx = {
+  background: T.surface,
+  border: `1px solid ${T.border}`,
+  borderRadius: "14px",
+  p: "20px",
+} as const;
+
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <Typography
+    sx={{
+      fontSize: "0.6875rem",
+      fontWeight: 600,
+      letterSpacing: "0.07em",
+      textTransform: "uppercase",
+      color: T.textDim,
+      fontFamily: MS_FONTS.sans,
+      mb: "14px",
+    }}
+  >
+    {children}
+  </Typography>
+);
+
+const InfoRow = ({ label, value }: { label: string; value: string }) => (
+  <Box sx={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+    <Typography sx={{ fontSize: "0.6875rem", fontWeight: 600, color: T.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      {label}
+    </Typography>
+    <Typography sx={{ fontSize: "0.9rem", color: T.text }}>{value}</Typography>
+  </Box>
+);
+
+const StatCard = ({
+  iconNode,
+  label,
+  value,
+}: {
+  iconNode: React.ReactNode;
+  label: string;
+  value: number;
+}) => (
+  <Box
+    sx={{
+      ...cardSx,
+      flex: 1,
+      minWidth: 160,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: "8px",
+      py: "24px",
+    }}
+  >
+    {iconNode}
+    <Typography
+      sx={{
+        fontSize: "2rem",
+        fontWeight: 700,
+        color: T.text,
+        fontFamily: MS_FONTS.sans,
+        lineHeight: 1,
+      }}
+    >
+      {value}
+    </Typography>
+    <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted, textAlign: "center" }}>
+      {label}
+    </Typography>
+  </Box>
 );
 
 const DoctorDetailPage = () => {
@@ -40,8 +101,8 @@ const DoctorDetailPage = () => {
   const navigate = useNavigate();
   const { getDoctorById } = useDoctorApi();
   const { getDoctorStatsById } = useProfileApi();
-
   const notify = useNotification();
+  const { setHeader } = usePageHeader();
   const [doctor, setDoctor] = useState<DoctorResponseDTO | null>(null);
   const [stats, setStats] = useState<DoctorStatsResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,67 +131,149 @@ const DoctorDetailPage = () => {
     fetchDoctor();
   }, [fetchDoctor]);
 
+  useEffect(() => {
+    if (doctor) {
+      setHeader({
+        title: `${doctor.lastName} ${doctor.firstName}`,
+        subtitle: "Detalii doctor",
+        breadcrumbs: ["Doctori", `${doctor.lastName} ${doctor.firstName}`],
+      });
+    }
+    return () => setHeader({ title: "" });
+  }, [doctor, setHeader]);
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: T.accent }} />
       </Box>
     );
   }
 
+  if (!doctor) {
+    return null;
+  }
+
+  const initials = `${doctor.firstName[0] ?? ""}${doctor.lastName[0] ?? ""}`.toUpperCase();
+
   return (
     <Box>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate("/doctors")} sx={{ mb: 1 }}>
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate("/doctors")}
+        sx={{ mb: "20px", color: T.textMuted, "&:hover": { color: T.text, background: T.surfaceAlt } }}
+      >
         Listă doctori
       </Button>
-      {doctor && (
-        <>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-            <Typography variant="h5">
-              {doctor.lastName} {doctor.firstName}
-            </Typography>
-            <Button
+
+      {/* Profile header card */}
+      <Box
+        sx={{
+          ...cardSx,
+          display: "flex",
+          alignItems: "center",
+          gap: "20px",
+          mb: "16px",
+          flexWrap: "wrap",
+        }}
+      >
+        <Avatar
+          sx={{
+            width: 68,
+            height: 68,
+            bgcolor: T.accentSoft,
+            color: T.accentInk,
+            fontSize: "1.5rem",
+            fontWeight: 600,
+            fontFamily: MS_FONTS.sans,
+            flexShrink: 0,
+          }}
+        >
+          {initials}
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            sx={{
+              fontSize: "1.25rem",
+              fontWeight: 600,
+              color: T.text,
+              fontFamily: MS_FONTS.sans,
+              letterSpacing: "-0.2px",
+            }}
+          >
+            {doctor.lastName} {doctor.firstName}
+          </Typography>
+          <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted, mt: "2px" }}>
+            {doctor.email}
+          </Typography>
+          <Box sx={{ display: "flex", gap: "6px", mt: "10px", flexWrap: "wrap" }}>
+            <Chip label={doctor.specialization} size="small" color="primary" />
+            <Chip
+              label={`Parafă: ${doctor.codParafa}`}
+              size="small"
               variant="outlined"
-              color="warning"
-              startIcon={<LockResetIcon />}
-              onClick={() => setResetPasswordOpen(true)}
-            >
-              Resetează parola
-            </Button>
+              sx={{ fontFamily: MS_FONTS.mono, fontSize: "0.75rem" }}
+            />
           </Box>
-          <Paper sx={{ p: 2, mb: 3 }}>
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-              <Typography><strong>Email:</strong> {doctor.email}</Typography>
-              <Typography><strong>Telefon:</strong> {doctor.phoneNumber ?? "—"}</Typography>
-              <Typography><strong>Specializare:</strong> {doctor.specialization}</Typography>
-              <Typography><strong>Cod parafă:</strong> {doctor.codParafa}</Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          color="warning"
+          startIcon={<LockResetIcon />}
+          onClick={() => setResetPasswordOpen(true)}
+        >
+          Resetează parola
+        </Button>
+      </Box>
+
+      {/* Info + Stats grid */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: "16px" }}>
+        {/* Info card */}
+        <Box sx={cardSx}>
+          <SectionLabel>Date personale</SectionLabel>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <InfoRow label="Email" value={doctor.email} />
+              <InfoRow label="Telefon" value={doctor.phoneNumber ?? "—"} />
             </Box>
-          </Paper>
-          {stats && (
-            <>
-              <Typography variant="h6" mb={1}>Statistici</Typography>
-              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 3 }}>
-                <StatCard
-                  icon={<MedicalServicesIcon color="primary" sx={{ fontSize: 40 }} />}
-                  label="Consultații efectuate"
-                  value={stats.consultationCount}
-                />
-                <StatCard
-                  icon={<DescriptionIcon color="primary" sx={{ fontSize: 40 }} />}
-                  label="Scrisori medicale generate"
-                  value={stats.medicalLetterCount}
-                />
-              </Box>
-            </>
-          )}
-          <ResetPasswordDialog
-            open={resetPasswordOpen}
-            onClose={() => setResetPasswordOpen(false)}
-            targetUserId={doctor.id}
-            targetUserName={`${doctor.firstName} ${doctor.lastName}`}
-          />
-        </>
-      )}
+            <Divider sx={{ borderColor: T.border }} />
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <InfoRow label="Specializare" value={doctor.specialization} />
+              <InfoRow label="Cod parafă" value={doctor.codParafa} />
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Stats card */}
+        {stats && (
+          <Box sx={cardSx}>
+            <SectionLabel>Statistici</SectionLabel>
+            <Box sx={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+              <StatCard
+                iconNode={
+                  <MedicalServicesIcon sx={{ fontSize: 36, color: T.accent }} />
+                }
+                label="Consultații efectuate"
+                value={stats.consultationCount}
+              />
+              <StatCard
+                iconNode={
+                  <DescriptionIcon sx={{ fontSize: 36, color: T.warm }} />
+                }
+                label="Scrisori medicale generate"
+                value={stats.medicalLetterCount}
+              />
+            </Box>
+          </Box>
+        )}
+      </Box>
+
+      <ResetPasswordDialog
+        open={resetPasswordOpen}
+        onClose={() => setResetPasswordOpen(false)}
+        targetUserId={doctor.id}
+        targetUserName={`${doctor.firstName} ${doctor.lastName}`}
+      />
     </Box>
   );
 };

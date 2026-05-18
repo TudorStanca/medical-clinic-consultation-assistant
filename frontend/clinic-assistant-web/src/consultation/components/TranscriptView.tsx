@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Box, Chip, Paper, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import type { TranscriptSegment } from "@/consultation/props";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
+
+const T = MS_LIGHT;
 
 const formatMs = (ms: number): string => {
   const total = Math.floor(ms / 1000);
@@ -25,30 +28,68 @@ const TranscriptView = ({ segments, isPreview }: Props) => {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <Typography variant="subtitle2">Transcriere</Typography>
-        {isPreview && <Chip label="preview" size="small" color="warning" variant="outlined" />}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: "10px" }}>
+        <Typography sx={{ fontSize: "0.8125rem", fontWeight: 600, color: T.text, fontFamily: MS_FONTS.sans }}>
+          Transcriere
+        </Typography>
+        {isPreview && (
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              px: "9px",
+              py: "3px",
+              borderRadius: "999px",
+              background: T.warningSoft,
+            }}
+          >
+            <Typography sx={{ fontSize: "0.6563rem", fontWeight: 600, letterSpacing: "0.05em", color: T.warning }}>
+              PREVIEW
+            </Typography>
+          </Box>
+        )}
       </Box>
-      <Paper
-        variant="outlined"
-        sx={{ p: 2, height: 320, overflowY: "auto", fontFamily: "monospace", fontSize: 13 }}
+
+      <Box
+        sx={{
+          height: 280,
+          overflowY: "auto",
+          border: `1px solid ${T.border}`,
+          borderRadius: "10px",
+          p: "14px 16px",
+          background: T.bg,
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+        }}
       >
         {segments.length === 0 ? (
-          <Typography color="text.secondary" sx={{ fontFamily: "monospace" }}>
+          <Typography sx={{ color: T.textDim, fontFamily: MS_FONTS.mono, fontSize: "0.8125rem", lineHeight: 1.6 }}>
             Transcrierea va apărea aici…
           </Typography>
         ) : (
           segments.map((seg, i) => (
-            <Box key={i} mb={0.5}>
-              <Box component="span" sx={{ color: "text.secondary", mr: 1 }}>
+            <Box key={i} sx={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+              <Typography
+                sx={{
+                  fontFamily: MS_FONTS.mono,
+                  fontSize: "0.75rem",
+                  color: T.accent,
+                  flexShrink: 0,
+                  lineHeight: 1.6,
+                  fontWeight: 500,
+                }}
+              >
                 [{formatMs(seg.startMs)}]
-              </Box>
-              {seg.text}
+              </Typography>
+              <Typography sx={{ fontSize: "0.875rem", color: T.text, lineHeight: 1.6, fontFamily: MS_FONTS.sans }}>
+                {seg.text}
+              </Typography>
             </Box>
           ))
         )}
         <div ref={bottomRef} />
-      </Paper>
+      </Box>
     </Box>
   );
 };

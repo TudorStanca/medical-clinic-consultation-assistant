@@ -11,6 +11,8 @@ export interface PagedQuery {
   search?: string;
   sortBy?: string;
   sortDir?: "asc" | "desc";
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface ValidationErrorResponse {

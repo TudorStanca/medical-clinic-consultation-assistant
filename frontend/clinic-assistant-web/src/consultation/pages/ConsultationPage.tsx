@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useBlocker } from "react-router-dom";
+import type { ReactNode } from "react";
 import {
   Box,
   Button,
@@ -9,13 +10,13 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Divider,
-  Grid,
-  Paper,
+  Skeleton,
   Typography,
 } from "@mui/material";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import useConsultationApi from "@/consultation/useConsultationApi";
 import useAudioWebSocket from "@/consultation/useAudioWebSocket";
 import useTranscriptionHub from "@/consultation/useTranscriptionHub";
@@ -29,10 +30,69 @@ import { extractErrorMessages } from "@/core/errorMessages";
 import useNotification from "@/shared/NotificationContext";
 import useAuth from "@/auth/useAuth";
 import { useRecording } from "@/consultation/RecordingContext";
+import { usePageHeader } from "@/shared/PageHeaderContext";
 import { Roles } from "@/shared/types/enums";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
 import type { SessionStatusName } from "@/shared/types/enums";
 import type { TranscriptSegment, SessionStatusEvent } from "@/consultation/props";
 import type { MedicalLetterResponseDTO } from "@/medicalLetter/props";
+
+const T = MS_LIGHT;
+
+const cardSx = {
+  background: T.surface,
+  border: `1px solid ${T.border}`,
+  borderRadius: "14px",
+  p: "20px",
+} as const;
+
+const SectionLabel = ({ children }: { children: string }) => (
+  <Typography
+    sx={{
+      fontSize: "0.6875rem",
+      fontWeight: 600,
+      letterSpacing: "0.07em",
+      textTransform: "uppercase",
+      color: T.textDim,
+      fontFamily: MS_FONTS.sans,
+      mb: "12px",
+    }}
+  >
+    {children}
+  </Typography>
+);
+
+const TimelineEntry = ({
+  icon,
+  label,
+  time,
+}: {
+  icon: "done" | "empty";
+  label: string;
+  time?: string;
+}) => (
+  <Box sx={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+    {icon === "done" ? (
+      <CheckCircleOutlineIcon sx={{ fontSize: 18, color: T.success, mt: "2px", flexShrink: 0 }} />
+    ) : (
+      <RadioButtonUncheckedIcon sx={{ fontSize: 18, color: T.textDim, mt: "2px", flexShrink: 0 }} />
+    )}
+    <Box>
+      <Typography sx={{ fontSize: "0.8125rem", color: T.text, fontFamily: MS_FONTS.sans }}>
+        {label}
+      </Typography>
+      {time && (
+        <Typography sx={{ fontFamily: MS_FONTS.mono, fontSize: "0.75rem", color: T.textMuted }}>
+          {time}
+        </Typography>
+      )}
+    </Box>
+  </Box>
+);
+
+const Card = ({ children, sx }: { children: ReactNode; sx?: object }) => (
+  <Box sx={{ ...cardSx, ...sx }}>{children}</Box>
+);
 
 const ConsultationPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -41,6 +101,7 @@ const ConsultationPage = () => {
   const { getLetterBySessionId } = useMedicalLetterApi();
   const { startStreaming, stopStreaming, pauseStreaming, resumeStreaming } = useAudioWebSocket();
   const { hasRole } = useAuth();
+  const { setHeader } = usePageHeader();
 
   const [status, setStatus] = useState<SessionStatusName>("Created");
   const [patientId, setPatientId] = useState<string>("");
@@ -58,10 +119,32 @@ const ConsultationPage = () => {
 
   const isDoctor = hasRole(Roles.Doctor);
   const isActive = recording || paused;
+  const isDone = status === "Done" && !recording && !paused;
 
   const { setIsActive: setGlobalIsActive } = useRecording();
   const isActiveRef = useRef(false);
   isActiveRef.current = isActive;
+
+  useEffect(() => {
+    if (patientFullName) {
+      setHeader({
+        title: patientFullName,
+        subtitle: sessionCreatedAt
+          ? new Date(sessionCreatedAt).toLocaleDateString("ro-RO", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })
+          : undefined,
+        breadcrumbs: ["Consultații", patientFullName],
+      });
+    } else {
+      setHeader({ title: "Consultație", breadcrumbs: ["Consultații"] });
+    }
+
+    return () => setHeader({ title: "" });
+  }, [patientFullName, sessionCreatedAt, setHeader]);
 
   useEffect(() => {
     setGlobalIsActive(isActive);
@@ -210,72 +293,201 @@ const ConsultationPage = () => {
     );
   }
 
+  const patientCard = (
+    <Card>
+      <SectionLabel>Pacient</SectionLabel>
+      <Typography sx={{ fontWeight: 600, color: T.text, fontSize: "0.9375rem" }}>
+        {patientFullName || "—"}
+      </Typography>
+      {sessionCreatedAt && (
+        <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted, mt: "4px" }}>
+          {new Date(sessionCreatedAt).toLocaleDateString("ro-RO", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        </Typography>
+      )}
+    </Card>
+  );
+
   return (
-    <Box>
+    <>
       <Button
-        startIcon={<ArrowBackIcon />}
+        size="small"
+        startIcon={<ArrowBackIcon sx={{ fontSize: "16px !important" }} />}
         onClick={() => navigate("/consultations")}
-        sx={{ mb: 1 }}
+        sx={{
+          color: T.textMuted,
+          fontFamily: MS_FONTS.sans,
+          fontSize: "0.8125rem",
+          mb: "20px",
+          px: "6px",
+          "&:hover": { color: T.text, background: T.surfaceAlt },
+        }}
       >
         Listă consultații
       </Button>
-      <Typography variant="h6" mb={2}>
-        {patientFullName
-          ? `Consultație — ${patientFullName} — ${new Date(sessionCreatedAt).toLocaleDateString("ro-RO")}`
-          : `Consultație — ${sessionId}`}
-      </Typography>
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 7 }}>
-          <Paper sx={{ p: 2 }}>
-            {isDoctor && (
-              <RecordingControls
-                status={status}
-                recording={recording}
-                paused={paused}
-                onStart={handleStart}
-                onStop={handleStop}
-                onPause={handlePause}
-                onResume={handleResume}
-              />
-            )}
-            <TranscriptView segments={segments} isPreview={isPreview} />
-          </Paper>
-        </Grid>
-        <Grid size={{ xs: 12, md: 5 }}>
-          {patientId && (
-            <DocumentsPanel patientId={patientId} sessionId={sessionId ?? null} readOnly={!isDoctor} />
-          )}
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="subtitle1" mb={1}>
-              Scrisoare medicală
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            {!letterLoaded && status !== "Done" ? (
-              <Typography variant="body2" color="text.secondary">
-                Disponibil după finalizarea sesiunii.
-              </Typography>
-            ) : !letter && status === "Done" && isDoctor ? (
-              <Button
-                variant="contained"
-                startIcon={<AutoFixHighIcon />}
-                onClick={() => setGenerateOpen(true)}
-              >
-                Generează scrisoare
-              </Button>
-            ) : letter ? (
-              <MedicalLetterForm
-                letter={letter}
+
+      {isDone ? (
+        /* ─── DONE LAYOUT ─── */
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", lg: "300px 1fr" },
+            gap: "20px",
+            alignItems: "start",
+          }}
+        >
+          {/* Left: patient info + timeline */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {patientCard}
+            <Card>
+              <SectionLabel>Cronologie</SectionLabel>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <TimelineEntry
+                  icon="done"
+                  label="Consultație creată"
+                  time={
+                    sessionCreatedAt
+                      ? new Date(sessionCreatedAt).toLocaleTimeString("ro-RO", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : undefined
+                  }
+                />
+                <TimelineEntry icon="done" label="Înregistrare finalizată" />
+                {letter ? (
+                  <TimelineEntry
+                    icon="done"
+                    label="Scrisoare generată"
+                    time={new Date(letter.writtenAt).toLocaleTimeString("ro-RO", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  />
+                ) : (
+                  <TimelineEntry icon="empty" label="Scrisoare necompletă" />
+                )}
+              </Box>
+            </Card>
+            {patientId && (
+              <DocumentsPanel
+                patientId={patientId}
+                sessionId={sessionId ?? null}
                 readOnly={!isDoctor}
-                onSaved={(updated) => setLetter(updated)}
               />
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Nicio scrisoare medicală.
-              </Typography>
             )}
-          </Paper>
-        </Grid>
-      </Grid>
+          </Box>
+
+          {/* Right: transcript + letter editor or generate CTA */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {segments.length > 0 && (
+              <Card>
+                <TranscriptView segments={segments} isPreview={false} />
+              </Card>
+            )}
+            {!letterLoaded ? (
+              <Card>
+                <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 2 }} />
+              </Card>
+            ) : letter ? (
+              <Card>
+                <MedicalLetterForm
+                  letter={letter}
+                  readOnly={!isDoctor}
+                  onSaved={(updated) => setLetter(updated)}
+                />
+              </Card>
+            ) : isDoctor ? (
+              <Card>
+                <Box sx={{ textAlign: "center", py: 4 }}>
+                  <Typography
+                    sx={{
+                      fontFamily: MS_FONTS.serif,
+                      fontSize: "1.25rem",
+                      color: T.text,
+                      mb: "8px",
+                    }}
+                  >
+                    Nicio scrisoare medicală
+                  </Typography>
+                  <Typography sx={{ fontSize: "0.875rem", color: T.textMuted, mb: "24px" }}>
+                    Transcrierea este gata. Generați o scrisoare medicală din transcriere.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AutoFixHighIcon />}
+                    onClick={() => setGenerateOpen(true)}
+                  >
+                    Generează scrisoare
+                  </Button>
+                </Box>
+              </Card>
+            ) : (
+              <Card>
+                <Typography sx={{ color: T.textMuted, fontSize: "0.875rem" }}>
+                  Nicio scrisoare medicală disponibilă.
+                </Typography>
+              </Card>
+            )}
+          </Box>
+        </Box>
+      ) : (
+        /* ─── RECORDING LAYOUT ─── */
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", lg: "1.15fr 1fr" },
+            gap: "20px",
+            alignItems: "start",
+          }}
+        >
+          {/* Left: recording controls + transcript */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {isDoctor && (
+              <Card>
+                <RecordingControls
+                  status={status}
+                  recording={recording}
+                  paused={paused}
+                  onStart={handleStart}
+                  onStop={handleStop}
+                  onPause={handlePause}
+                  onResume={handleResume}
+                />
+              </Card>
+            )}
+            <Card>
+              <TranscriptView segments={segments} isPreview={isPreview} />
+            </Card>
+          </Box>
+
+          {/* Right: patient info + documents */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {patientCard}
+            {patientId && (
+              <DocumentsPanel
+                patientId={patientId}
+                sessionId={sessionId ?? null}
+                readOnly={!isDoctor}
+              />
+            )}
+            {status === "Processing" && (
+              <Card>
+                <Box sx={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <CircularProgress size={20} />
+                  <Typography sx={{ fontSize: "0.875rem", color: T.textMuted }}>
+                    Se procesează înregistrarea…
+                  </Typography>
+                </Box>
+              </Card>
+            )}
+          </Box>
+        </Box>
+      )}
+
       {sessionId && (
         <GenerateLetterDialog
           open={generateOpen}
@@ -284,12 +496,13 @@ const ConsultationPage = () => {
           onClose={() => setGenerateOpen(false)}
         />
       )}
+
       <Dialog open={blocker.state === "blocked"}>
         <DialogTitle>Ieși din înregistrare?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Dacă ieși acum, înregistrarea se oprește și consultația va fi salvată cu ce s-a înregistrat până atunci.
-            Continui?
+            Dacă ieși acum, înregistrarea se oprește și consultația va fi salvată cu ce s-a înregistrat până
+            atunci. Continui?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -299,7 +512,7 @@ const ConsultationPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 };
 

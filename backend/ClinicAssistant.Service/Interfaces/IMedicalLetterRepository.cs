@@ -9,4 +9,6 @@ public interface IMedicalLetterRepository
     Task<MedicalLetter?> GetByIdAsync(Guid id);
     Task UpdateAsync(MedicalLetter letter);
     Task<int> CountByDoctorAsync(string doctorId);
+    Task<int> CountGlobalAsync();
+    Task<int> CountByPatientAsync(string patientId);
 }
