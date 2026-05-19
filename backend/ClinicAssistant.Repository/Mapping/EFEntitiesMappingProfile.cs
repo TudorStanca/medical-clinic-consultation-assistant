@@ -38,7 +38,8 @@ public class EFEntitiesMappingProfile : Profile
                 s.DoctorId,
                 s.PatientId,
                 $"{s.Patient.FirstName} {s.Patient.LastName}",
-                s.CreatedAt));
+                s.CreatedAt,
+                s.PatientTranscriptAccess));
 
         CreateMap<ConsultationSession, SessionSummaryResponseDTO>()
             .ConstructUsing(s => new SessionSummaryResponseDTO(

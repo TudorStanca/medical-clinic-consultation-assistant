@@ -11,6 +11,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
+  initializing: boolean;
   login: (dto: LoginRequestDTO) => Promise<void>;
   logout: () => void;
   hasRole: (role: string) => boolean;
@@ -21,6 +22,7 @@ export const AuthContext = createContext<AuthContextValue>({
   user: null,
   token: null,
   isAuthenticated: false,
+  initializing: true,
   login: async () => {},
   logout: () => {},
   hasRole: () => false,
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: Props) {
   const navigate = useNavigate();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [initializing, setInitializing] = useState(true);
   const interceptorsRef = useRef<{ request: number; response: number } | null>(null);
 
   const applyToken = useCallback((raw: string) => {
@@ -65,6 +68,7 @@ export function AuthProvider({ children }: Props) {
     if (saved) {
       applyToken(saved);
     }
+    setInitializing(false);
   }, [applyToken]);
 
   useEffect(() => {
@@ -116,7 +120,7 @@ export function AuthProvider({ children }: Props) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, login, logout, hasRole, refreshToken }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, initializing, login, logout, hasRole, refreshToken }}>
       {children}
     </AuthContext.Provider>
   );

@@ -157,6 +157,22 @@ public class ConsultationSessionService(
         await _sessionRepo.DeleteAsync(session);
     }
 
+    public async Task SetPatientTranscriptAccessAsync(Guid sessionId, string requestingDoctorId, bool allow)
+    {
+        _logger.Info($"Setting PatientTranscriptAccess={allow} for session {sessionId} by Doctor={requestingDoctorId}");
+
+        var session = await _sessionRepo.GetByIdAsync(sessionId)
+            ?? throw new NotFoundException($"Session {sessionId} not found.");
+
+        if (session.DoctorId != requestingDoctorId)
+        {
+            throw new UnauthorizedException("Nu aveți permisiunea de a modifica accesul la transcriptul acestei consultații.");
+        }
+
+        session.SetPatientTranscriptAccess(allow);
+        await _sessionRepo.UpdateAsync(session);
+    }
+
     public async Task<DashboardStatsResponseDTO> GetDashboardStatsAsync(string userId, IEnumerable<string> roles)
     {
         _logger.Info($"Getting dashboard stats for user={userId}");

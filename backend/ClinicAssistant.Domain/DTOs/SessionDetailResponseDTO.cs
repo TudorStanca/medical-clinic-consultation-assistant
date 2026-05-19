@@ -7,4 +7,5 @@ public record SessionDetailResponseDTO(
     string DoctorId,
     string PatientId,
     string PatientFullName,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    bool PatientTranscriptAccess);
