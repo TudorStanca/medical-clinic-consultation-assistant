@@ -581,6 +581,7 @@ const ConsultationPage = () => {
         <GenerateLetterDialog
           open={generateOpen}
           sessionId={sessionId}
+          patientId={patientId}
           onGenerated={handleLetterGenerated}
           onClose={() => setGenerateOpen(false)}
         />

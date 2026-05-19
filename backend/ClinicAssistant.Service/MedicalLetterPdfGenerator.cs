@@ -7,7 +7,7 @@ namespace ClinicAssistant.Service;
 
 public class MedicalLetterPdfGenerator
 {
-    public byte[] Generate(MedicalLetter letter)
+    public byte[] Generate(MedicalLetter letter, IReadOnlyList<LetterAttachment>? attachments = null)
     {
         var patient = letter.Session.Patient;
         var doctor = letter.Session.Doctor;
@@ -169,6 +169,38 @@ public class MedicalLetterPdfGenerator
                     });
                 });
             });
+            if (attachments != null)
+            {
+                foreach (var (idx, att) in attachments.Select((a, i) => (i + 1, a)))
+                {
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.A4);
+                        page.Margin(2, Unit.Centimetre);
+                        page.DefaultTextStyle(x => x.FontSize(11));
+
+                        page.Header().Column(column =>
+                        {
+                            column.Item().Text(t =>
+                            {
+                                t.DefaultTextStyle(s => s.FontSize(13).Bold());
+                                t.Span($"Anexa {idx}");
+                            });
+                            column.Item().PaddingTop(4).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+                        });
+
+                        page.Content().PaddingTop(16).Column(col =>
+                        {
+                            col.Item().AlignCenter().MaxHeight(500).Image(att.Data).FitArea();
+
+                            if (!string.IsNullOrWhiteSpace(att.Caption))
+                            {
+                                col.Item().PaddingTop(12).AlignCenter().Text(att.Caption).Italic();
+                            }
+                        });
+                    });
+                }
+            }
         }).GeneratePdf();
     }
 }

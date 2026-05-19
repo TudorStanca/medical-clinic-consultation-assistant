@@ -87,6 +87,53 @@ public class MedicalLetterService(
 
         _logger.Info($"Loaded {sessionDocs.Count} session + {extraDocs.Count} patient-wide document(s), extracted text from {contextTexts.Count}.");
 
+        if (dto.PreviousLetterIds?.Count > 0)
+        {
+            var prevLetters = await _letterRepo.GetByIdsAsync(dto.PreviousLetterIds, doctorId, session.PatientId, ct);
+
+            foreach (var prev in prevLetters)
+            {
+                var parts = new List<string>
+                {
+                    $"Scrisoare anterioară ({prev.LetterType}, {prev.WrittenAt:yyyy-MM-dd}):"
+                };
+
+                if (!string.IsNullOrWhiteSpace(prev.Antecedente))
+                {
+                    parts.Add($"Antecedente: {prev.Antecedente}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(prev.Simptome))
+                {
+                    parts.Add($"Simptome: {prev.Simptome}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(prev.Clinice))
+                {
+                    parts.Add($"Examen clinic: {prev.Clinice}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(prev.Paraclinice))
+                {
+                    parts.Add($"Investigații paraclinice: {prev.Paraclinice}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(prev.Diagnostic))
+                {
+                    parts.Add($"Diagnostic: {prev.Diagnostic}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(prev.Recomandari))
+                {
+                    parts.Add($"Recomandări: {prev.Recomandari}");
+                }
+
+                contextTexts.Add(string.Join("\n", parts));
+            }
+
+            _logger.Info($"Injected {prevLetters.Count()} previous letter(s) into context.");
+        }
+
         var content = await _llmService.GenerateLetterAsync(transcript, dto.LetterType, contextTexts, ct);
 
         var letter = new MedicalLetter
@@ -118,6 +165,15 @@ public class MedicalLetterService(
             ?? throw new InvalidOperationException($"Failed to retrieve created letter {letter.Id}.");
 
         return _mapper.Map<MedicalLetterResponseDTO>(created);
+    }
+
+    public async Task<IEnumerable<MedicalLetterSummaryResponseDTO>> GetPreviousLettersAsync(string doctorId, string patientId, Guid? excludeSessionId, CancellationToken ct)
+    {
+        _logger.Info($"Getting previous letters for doctor={doctorId}, patient={patientId}, excludeSession={excludeSessionId}.");
+
+        var letters = await _letterRepo.GetByDoctorAndPatientAsync(doctorId, patientId, excludeSessionId, ct);
+
+        return letters.Select(l => _mapper.Map<MedicalLetterSummaryResponseDTO>(l));
     }
 
     public async Task<MedicalLetterResponseDTO> GetByIdAsync(Guid id)
@@ -169,7 +225,8 @@ public class MedicalLetterService(
         var letter = await _letterRepo.GetByIdAsync(id)
             ?? throw new NotFoundException($"Medical letter {id} not found.");
 
-        var bytes = _pdfGenerator.Generate(letter);
+        var attachments = letter.Attachments.Count > 0 ? letter.Attachments : null;
+        var bytes = _pdfGenerator.Generate(letter, attachments);
         var fileName = $"scrisoare-medicala-{letter.WrittenAt:yyyyMMdd}-{letter.Id}.pdf";
 
         return (bytes, fileName);

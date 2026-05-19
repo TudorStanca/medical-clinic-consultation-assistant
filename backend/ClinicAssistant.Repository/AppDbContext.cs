@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<TranscriptSegment> TranscriptSegments { get; set; }
     public DbSet<MedicalLetter> MedicalLetters { get; set; }
     public DbSet<UploadedDocument> UploadedDocuments { get; set; }
+    public DbSet<LetterAttachment> LetterAttachments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -67,6 +68,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
         builder.Entity<MedicalLetter>()
             .Navigation(l => l.Documents).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // LetterAttachment → MedicalLetter (Cascade)
+        builder.Entity<LetterAttachment>()
+            .HasOne(a => a.MedicalLetter).WithMany(l => l.Attachments)
+            .HasForeignKey(a => a.MedicalLetterId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<MedicalLetter>()
+            .Navigation(l => l.Attachments).UsePropertyAccessMode(PropertyAccessMode.Field);
 
         // Sex enum → string in DB
         builder.Entity<Patient>()

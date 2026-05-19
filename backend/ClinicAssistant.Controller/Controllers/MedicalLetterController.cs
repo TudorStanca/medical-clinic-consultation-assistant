@@ -4,16 +4,18 @@ using ClinicAssistant.Domain.Constants;
 using ClinicAssistant.Domain.DTOs;
 using log4net;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicAssistant.Controller.Controllers;
 
 [ApiController]
 [Route("api/MedicalLetters")]
-public class MedicalLetterController(IMedicalLetterService letterService) : ControllerBase
+public class MedicalLetterController(IMedicalLetterService letterService, ILetterAttachmentService attachmentService) : ControllerBase
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(MedicalLetterController));
     private readonly IMedicalLetterService _letterService = letterService;
+    private readonly ILetterAttachmentService _attachmentService = attachmentService;
 
     [HttpPost]
     [Authorize(Roles = Roles.Doctor)]
@@ -28,6 +30,20 @@ public class MedicalLetterController(IMedicalLetterService letterService) : Cont
         var letter = await _letterService.CreateLetterAsync(dto, doctorId, ct);
 
         return CreatedAtAction(nameof(GetLetter), new { id = letter.Id }, letter);
+    }
+
+    [HttpGet("previous")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(typeof(IEnumerable<MedicalLetterSummaryResponseDTO>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<ActionResult> GetPreviousLetters([FromQuery] string patientId, [FromQuery] Guid? excludeSessionId, CancellationToken ct)
+    {
+        _logger.Info($"Received request to get previous letters for patient={patientId}, excludeSession={excludeSessionId}.");
+        var doctorId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var letters = await _letterService.GetPreviousLettersAsync(doctorId, patientId, excludeSessionId, ct);
+
+        return Ok(letters);
     }
 
     [HttpGet("{id:guid}")]
@@ -90,6 +106,64 @@ public class MedicalLetterController(IMedicalLetterService letterService) : Cont
         var (bytes, fileName) = await _letterService.GetPdfAsync(id);
 
         return File(bytes, "application/pdf", fileName);
+    }
+
+    [HttpPost("{id:guid}/attachments")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(typeof(LetterAttachmentResponseDTO), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(422)]
+    public async Task<ActionResult> AddAttachment(Guid id, IFormFile file, [FromForm] string? caption, CancellationToken ct)
+    {
+        _logger.Info($"Received request to add attachment to letter id={id}.");
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var attachment = await _attachmentService.AddAttachmentAsync(id, file, caption, userId, ct);
+
+        return CreatedAtAction(nameof(GetAttachments), new { id }, attachment);
+    }
+
+    [HttpGet("{id:guid}/attachments")]
+    [Authorize]
+    [ProducesResponseType(typeof(IEnumerable<LetterAttachmentResponseDTO>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> GetAttachments(Guid id)
+    {
+        _logger.Info($"Received request for attachments of letter id={id}.");
+        var attachments = await _attachmentService.GetByLetterIdAsync(id);
+
+        return Ok(attachments);
+    }
+
+    [HttpGet("{id:guid}/attachments/{attachmentId:guid}/image")]
+    [Authorize]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> GetAttachmentImage(Guid id, Guid attachmentId)
+    {
+        _logger.Info($"Received request to serve attachment image {attachmentId}.");
+        var (data, contentType, fileName) = await _attachmentService.GetImageAsync(attachmentId);
+
+        return File(data, contentType, fileName);
+    }
+
+    [HttpDelete("{id:guid}/attachments/{attachmentId:guid}")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> DeleteAttachment(Guid id, Guid attachmentId)
+    {
+        _logger.Info($"Received request to delete attachment {attachmentId} from letter {id}.");
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _attachmentService.DeleteAsync(attachmentId, userId);
+
+        return NoContent();
     }
 
     [HttpPut("{id:guid}")]

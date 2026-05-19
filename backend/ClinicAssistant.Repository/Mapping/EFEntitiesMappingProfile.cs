@@ -73,6 +73,13 @@ public class EFEntitiesMappingProfile : Profile
                 ctx.Mapper.Map<PatientResponseDTO>(m.Session.Patient),
                 ctx.Mapper.Map<IReadOnlyList<UploadedDocumentResponseDTO>>(m.Documents)));
 
+        CreateMap<MedicalLetter, MedicalLetterSummaryResponseDTO>()
+            .ConstructUsing(m => new MedicalLetterSummaryResponseDTO(
+                m.Id,
+                m.LetterType,
+                m.Location,
+                m.WrittenAt));
+
         CreateMap<UploadedDocument, UploadedDocumentResponseDTO>()
             .ConstructUsing(d => new UploadedDocumentResponseDTO(
                 d.Id,

@@ -163,6 +163,7 @@ public class Program
         builder.Services.AddScoped<IConsultationSessionRepository, ConsultationSessionRepository>();
         builder.Services.AddScoped<IMedicalLetterRepository, MedicalLetterRepository>();
         builder.Services.AddScoped<IUploadedDocumentRepository, UploadedDocumentRepository>();
+        builder.Services.AddScoped<ILetterAttachmentRepository, LetterAttachmentRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
 
         // Services (Scoped)
@@ -172,6 +173,7 @@ public class Program
         builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IMedicalLetterService, MedicalLetterService>();
+        builder.Services.AddScoped<ILetterAttachmentService, LetterAttachmentService>();
         builder.Services.AddScoped<MedicalLetterPdfGenerator>();
 
         // Document text extractors (Singleton — stateless)

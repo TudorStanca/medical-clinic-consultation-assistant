@@ -5,6 +5,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
+import LetterAttachmentsSection from "@/medicalLetter/components/LetterAttachmentsSection";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages } from "@/core/errorMessages";
 import useNotification from "@/shared/NotificationContext";
@@ -201,6 +202,10 @@ const MedicalLetterForm = ({ letter, readOnly = false, onSaved }: Props) => {
           </Button>
         )}
       </Box>
+      <LetterAttachmentsSection
+        letterId={letter.id}
+        readOnly={readOnly}
+      />
     </Box>
   );
 };
