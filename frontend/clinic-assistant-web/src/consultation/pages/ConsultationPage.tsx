@@ -22,6 +22,7 @@ import useAudioWebSocket from "@/consultation/useAudioWebSocket";
 import useTranscriptionHub from "@/consultation/useTranscriptionHub";
 import TranscriptView from "@/consultation/components/TranscriptView";
 import RecordingControls from "@/consultation/components/RecordingControls";
+import TestMicrophoneDialog from "@/consultation/components/TestMicrophoneDialog";
 import DocumentsPanel from "@/documents/components/DocumentsPanel";
 import GenerateLetterDialog from "@/medicalLetter/components/GenerateLetterDialog";
 import MedicalLetterForm from "@/medicalLetter/components/MedicalLetterForm";
@@ -114,6 +115,7 @@ const ConsultationPage = () => {
   const [letter, setLetter] = useState<MedicalLetterResponseDTO | null>(null);
   const [letterLoaded, setLetterLoaded] = useState(false);
   const [generateOpen, setGenerateOpen] = useState(false);
+  const [testMicOpen, setTestMicOpen] = useState(false);
   const notify = useNotification();
   const [loading, setLoading] = useState(true);
 
@@ -456,6 +458,7 @@ const ConsultationPage = () => {
                   onStop={handleStop}
                   onPause={handlePause}
                   onResume={handleResume}
+                  onTestMic={() => setTestMicOpen(true)}
                 />
               </Card>
             )}
@@ -496,6 +499,8 @@ const ConsultationPage = () => {
           onClose={() => setGenerateOpen(false)}
         />
       )}
+
+      <TestMicrophoneDialog open={testMicOpen} onClose={() => setTestMicOpen(false)} />
 
       <Dialog open={blocker.state === "blocked"}>
         <DialogTitle>Ieși din înregistrare?</DialogTitle>

@@ -6,4 +6,5 @@ public class WhisperSettings
     public required string Language { get; set; }
     public bool UseCuda { get; set; }
     public bool UseStub { get; set; }
+    public bool LogTimings { get; set; } = true;
 }

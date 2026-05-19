@@ -10,4 +10,6 @@ public class LlmSettings
     public string SystemPromptPath { get; set; } = "Assets/system-prompt.txt";
     public string ApiUrl { get; set; } = "https://api.anthropic.com/v1/messages";
     public string AnthropicVersion { get; set; } = "2023-06-01";
+    public bool LogPrompts { get; set; } = false;
+    public bool LogResponses { get; set; } = false;
 }

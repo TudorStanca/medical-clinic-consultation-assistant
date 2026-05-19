@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using ClinicAssistant.Domain.DTOs;
@@ -49,25 +50,40 @@ public class ClaudeService : ILlmService
         request.Headers.Add("anthropic-version", _settings.AnthropicVersion);
         request.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
+        if (_settings.LogPrompts)
+        {
+            _logger.Info($"Claude prompt — system:\n{_systemPrompt}\n\nuser:\n{userContent}");
+        }
+
+        var sw = Stopwatch.StartNew();
         using var response = await _httpClient.SendAsync(request, ct);
+        sw.Stop();
 
         if (!response.IsSuccessStatusCode)
         {
             var errorBody = await response.Content.ReadAsStringAsync(ct);
-            _logger.Error($"Claude API returned {(int)response.StatusCode}: {errorBody}");
+            _logger.Error($"Claude API returned {(int)response.StatusCode} after {sw.ElapsedMilliseconds} ms: {errorBody}");
             throw new InvalidOperationException($"Claude API error ({(int)response.StatusCode}): {errorBody}");
         }
 
         var responseBody = await response.Content.ReadAsStringAsync(ct);
 
         using var doc = JsonDocument.Parse(responseBody);
+
+        var inputTokens = doc.RootElement.GetProperty("usage").GetProperty("input_tokens").GetInt32();
+        var outputTokens = doc.RootElement.GetProperty("usage").GetProperty("output_tokens").GetInt32();
+        _logger.Info($"Claude call: {sw.ElapsedMilliseconds} ms, status={(int)response.StatusCode}, inputTokens={inputTokens}, outputTokens={outputTokens}");
+
+        if (_settings.LogResponses)
+        {
+            _logger.Info($"Claude response:\n{responseBody}");
+        }
+
         var text = doc.RootElement
             .GetProperty("content")[0]
             .GetProperty("text")
             .GetString()
             ?? throw new InvalidOperationException("Claude API returned an empty text response.");
-
-        _logger.Info($"Claude API response received. Raw JSON length: {text.Length}.");
 
         var content = JsonSerializer.Deserialize<MedicalLetterContentDTO>(text.Trim(), new JsonSerializerOptions
         {

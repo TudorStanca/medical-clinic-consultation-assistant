@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Service;
@@ -67,12 +68,31 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
         await _semaphore.WaitAsync(ct);
         try
         {
-            Log.Info($"Wrapping {pcmData.Length / 1024} KB of PCM into WAV and starting Whisper...");
+            if (_settings.LogTimings)
+            {
+                var audioDurationMs = (long)pcmData.Length * 1000 / (2 * 16000);
+                Log.Info($"Whisper start: pcm={pcmData.Length / 1024} KB, samples={pcmData.Length / 2}, audioDuration={audioDurationMs} ms");
+            }
+
+            var sw = _settings.LogTimings ? Stopwatch.StartNew() : null;
 
             var wavBytes = WrapPcmInWav(pcmData);
             var segments = await TranscribeWavAsync(wavBytes, ct);
 
-            Log.Info($"Whisper done, {segments.Count} segment(s).");
+            if (_settings.LogTimings && sw is not null)
+            {
+                sw.Stop();
+                var audioDurationMs = (long)pcmData.Length * 1000 / (2 * 16000);
+                var rtf = audioDurationMs > 0 ? (double)sw.ElapsedMilliseconds / audioDurationMs : 0;
+                Log.Info($"Whisper end: {sw.ElapsedMilliseconds} ms, segments={segments.Count}, RTF={rtf:F3}");
+
+                var fullTranscript = string.Join(" ", segments.Select(s => s.Text));
+                Log.Info($"Whisper transcript: {fullTranscript}");
+            }
+            else
+            {
+                Log.Info($"Whisper done, {segments.Count} segment(s).");
+            }
 
             return segments;
         }

@@ -4,6 +4,7 @@ import MicIcon from "@mui/icons-material/Mic";
 import StopIcon from "@mui/icons-material/Stop";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
+import SettingsVoiceIcon from "@mui/icons-material/SettingsVoice";
 import type { SessionStatusName } from "@/shared/types/enums";
 import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
 
@@ -27,9 +28,10 @@ interface Props {
   onStop: () => void;
   onPause: () => void;
   onResume: () => void;
+  onTestMic: () => void;
 }
 
-const RecordingControls = ({ status, recording, paused, onStart, onStop, onPause, onResume }: Props) => {
+const RecordingControls = ({ status, recording, paused, onStart, onStop, onPause, onResume, onTestMic }: Props) => {
   const isTerminal =
     status === "Done" || status === "Failed" || status === "Interrupted" || status === "Processing";
   const isActive = recording || paused;
@@ -203,9 +205,14 @@ const RecordingControls = ({ status, recording, paused, onStart, onStop, onPause
       {!isTerminal && (
         <Box sx={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
           {!recording && (
-            <Button variant="contained" startIcon={<MicIcon />} onClick={onStart}>
-              Pornire
-            </Button>
+            <>
+              <Button variant="outlined" startIcon={<SettingsVoiceIcon />} onClick={onTestMic}>
+                Testează microfon
+              </Button>
+              <Button variant="contained" startIcon={<MicIcon />} onClick={onStart}>
+                Pornire
+              </Button>
+            </>
           )}
           {recording && !paused && (
             <Button
