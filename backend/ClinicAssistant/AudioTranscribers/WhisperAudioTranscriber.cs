@@ -23,22 +23,31 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
     {
         _settings = options.Value;
 
-        var modelPath = Path.Combine(AppContext.BaseDirectory, fileStorageOptions.Value.ModelsPath, _settings.ModelFileName);
+        var modelPath = Path.Combine(Directory.GetCurrentDirectory(), fileStorageOptions.Value.ModelsPath, _settings.ModelFileName);
 
         if (!File.Exists(modelPath))
         {
-            Log.Info($"Whisper model not found at {modelPath}. Downloading ggml-medium...");
+            Log.Info($"Whisper model not found at {modelPath}. Downloading...");
             Directory.CreateDirectory(Path.GetDirectoryName(modelPath)!);
-            DownloadModelAsync(modelPath).GetAwaiter().GetResult();
+            DownloadModelAsync(modelPath, _settings.ModelFileName).GetAwaiter().GetResult();
             Log.Info("Whisper model download complete.");
         }
 
         if (_settings.UseCuda)
         {
-            Log.Info("UseCuda=true — initializing CUDA runtime.");
-            RuntimeOptions.RuntimeLibraryOrder = [RuntimeLibrary.Cuda];
-            _factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions { GpuDevice = 0 });
-            Log.Info("WhisperFactory initialized with CUDA.");
+            try
+            {
+                RuntimeOptions.RuntimeLibraryOrder = [RuntimeLibrary.Cuda, RuntimeLibrary.Cpu];
+                _factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions { GpuDevice = 0 });
+                Log.Info("WhisperFactory initialized with CUDA.");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"CUDA init failed ({ex.Message}). Falling back to CPU.");
+                RuntimeOptions.RuntimeLibraryOrder = [RuntimeLibrary.Cpu];
+                _factory = WhisperFactory.FromPath(modelPath);
+                Log.Info("WhisperFactory initialized with CPU (fallback).");
+            }
         }
         else
         {
@@ -49,9 +58,18 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
         }
     }
 
-    private static async Task DownloadModelAsync(string modelPath)
+    private static async Task DownloadModelAsync(string modelPath, string modelFileName)
     {
-        using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(GgmlType.Medium);
+        var stem = Path.GetFileNameWithoutExtension(modelFileName)
+            .Replace("ggml-", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("-", string.Empty);
+
+        if (!Enum.TryParse<GgmlType>(stem, ignoreCase: true, out var ggmlType))
+        {
+            throw new InvalidOperationException($"Cannot determine GgmlType from ModelFileName '{modelFileName}'. Unrecognized model type '{stem}'.");
+        }
+
+        using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(ggmlType);
         using var fileStream = File.OpenWrite(modelPath);
         await modelStream.CopyToAsync(fileStream);
     }

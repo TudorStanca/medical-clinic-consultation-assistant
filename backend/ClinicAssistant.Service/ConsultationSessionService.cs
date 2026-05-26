@@ -119,6 +119,19 @@ public class ConsultationSessionService(
             await _sessionRepo.UpdateAsync(session);
 
             await _publisher.PublishStatusAsync(sessionId, session.Status.ToString(), ct);
+
+            try
+            {
+                if (File.Exists(audioPath))
+                {
+                    File.Delete(audioPath);
+                    _logger.Info($"Audio file deleted after successful transcription: {audioPath}");
+                }
+            }
+            catch (Exception delEx)
+            {
+                _logger.Warn($"Failed to delete audio file {audioPath}: {delEx.Message}");
+            }
         }
         catch (Exception ex)
         {

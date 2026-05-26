@@ -98,6 +98,11 @@ public class Program
             });
         });
 
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("LOG_FILE_PATH")))
+        {
+            Environment.SetEnvironmentVariable("LOG_FILE_PATH", "Logs/logs.txt");
+        }
+
         builder.Logging.ClearProviders();
         builder.Logging.AddLog4Net("log4net.config");
 
@@ -205,6 +210,12 @@ public class Program
         }
 
         var app = builder.Build();
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await dbContext.Database.MigrateAsync();
+        }
 
         await SeedAsync(app);
         await CleanupInterruptedSessionsAsync(app);
