@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -20,11 +21,14 @@ import {
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { IconButton, Tooltip } from "@mui/material";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
 import { extractErrorMessages, isNetworkError } from "@/core/errorMessages";
 import type { MedicalLetterResponseDTO, MedicalLetterSummary } from "@/medicalLetter/props";
 import { MS_LIGHT } from "@/theme/tokens";
+import useAuth from "@/auth/useAuth";
 
 const T = MS_LIGHT;
 
@@ -39,7 +43,8 @@ interface Props {
 }
 
 const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose }: Props) => {
-  const { createLetter, getPreviousLetters } = useMedicalLetterApi();
+  const { createLetter, getPreviousLetters, previewLetterPdf } = useMedicalLetterApi();
+  const { user } = useAuth();
   const [letterType, setLetterType] = useState(LETTER_TYPES[0]);
   const [location, setLocation] = useState("");
   const [includeAllDocs, setIncludeAllDocs] = useState(false);
@@ -135,6 +140,15 @@ const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const handlePreview = async (id: string) => {
+    try {
+      const url = await previewLetterPdf(id);
+      window.open(url, "_blank");
+    } catch {
+      // preview failed silently
+    }
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -268,31 +282,62 @@ const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose
                     pr: "4px",
                   }}
                 >
-                  {previousLetters.map((pl) => (
-                    <FormControlLabel
-                      key={pl.id}
-                      control={
-                        <Checkbox
-                          size="small"
-                          checked={selectedLetterIds.has(pl.id)}
-                          onChange={() => toggleLetter(pl.id)}
-                          disabled={loading}
-                          sx={{
-                            color: T.border,
-                            "&.Mui-checked": { color: T.accent },
-                          }}
+                  {previousLetters.map((pl) => {
+                    const isExternal = pl.authorDoctorId !== user?.id;
+
+                    return (
+                      <Box key={pl.id} sx={{ display: "flex", alignItems: "center", gap: "2px" }}>
+                        <FormControlLabel
+                          sx={{ flex: 1, mr: 0, minWidth: 0 }}
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={selectedLetterIds.has(pl.id)}
+                              onChange={() => toggleLetter(pl.id)}
+                              disabled={loading}
+                              sx={{
+                                color: T.border,
+                                "&.Mui-checked": { color: T.accent },
+                                flexShrink: 0,
+                              }}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography sx={{ fontSize: "0.8125rem", color: T.text }}>
+                                {pl.letterType}
+                                {pl.location ? ` — ${pl.location}` : ""}
+                                {" — "}
+                                {formatDate(pl.writtenAt)}
+                              </Typography>
+                              {isExternal && (
+                                <Box sx={{ display: "flex", alignItems: "center", gap: "4px", mt: "3px" }}>
+                                  <Chip
+                                    label={`Dr. ${pl.authorDoctorName}`}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: "0.6875rem", height: 20 }}
+                                  />
+                                  <Tooltip title="Deschide PDF">
+                                    <span>
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => { e.preventDefault(); handlePreview(pl.id); }}
+                                        disabled={loading}
+                                        sx={{ color: T.textMuted, p: "2px" }}
+                                      >
+                                        <OpenInNewIcon sx={{ fontSize: 13 }} />
+                                      </IconButton>
+                                    </span>
+                                  </Tooltip>
+                                </Box>
+                              )}
+                            </Box>
+                          }
                         />
-                      }
-                      label={
-                        <Typography sx={{ fontSize: "0.8125rem", color: T.text }}>
-                          {pl.letterType}
-                          {pl.location ? ` — ${pl.location}` : ""}
-                          {" — "}
-                          {formatDate(pl.writtenAt)}
-                        </Typography>
-                      }
-                    />
-                  ))}
+                      </Box>
+                    );
+                  })}
                 </Box>
                 <FormHelperText sx={{ ml: "30px", mt: "2px" }}>
                   Scrisorile bifate vor fi incluse ca referință în prompt-ul AI.

@@ -78,7 +78,21 @@ public class EFEntitiesMappingProfile : Profile
                 m.Id,
                 m.LetterType,
                 m.Location,
-                m.WrittenAt));
+                m.WrittenAt,
+                m.Session.DoctorId,
+                $"{m.Session.Doctor.FirstName} {m.Session.Doctor.LastName}"));
+
+        CreateMap<LetterAccessGrant, LetterAccessGrantResponseDTO>()
+            .ConstructUsing(g => new LetterAccessGrantResponseDTO(
+                g.Id,
+                g.GranteeDoctorId,
+                $"{g.GranteeDoctor.FirstName} {g.GranteeDoctor.LastName}",
+                g.SourceDoctorId,
+                $"{g.SourceDoctor.FirstName} {g.SourceDoctor.LastName}",
+                g.CreatedAt));
+
+        CreateMap<Doctor, DoctorSearchableResponseDTO>()
+            .ConstructUsing(d => new DoctorSearchableResponseDTO(d.Id, d.FirstName, d.LastName, d.Specialization));
 
         CreateMap<UploadedDocument, UploadedDocumentResponseDTO>()
             .ConstructUsing(d => new UploadedDocumentResponseDTO(

@@ -11,11 +11,12 @@ namespace ClinicAssistant.Controller.Controllers;
 
 [ApiController]
 [Route("api/MedicalLetters")]
-public class MedicalLetterController(IMedicalLetterService letterService, ILetterAttachmentService attachmentService) : ControllerBase
+public class MedicalLetterController(IMedicalLetterService letterService, ILetterAttachmentService attachmentService, ILetterAccessGrantService grantService) : ControllerBase
 {
     private readonly ILog _logger = LogManager.GetLogger(typeof(MedicalLetterController));
     private readonly IMedicalLetterService _letterService = letterService;
     private readonly ILetterAttachmentService _attachmentService = attachmentService;
+    private readonly ILetterAccessGrantService _grantService = grantService;
 
     [HttpPost]
     [Authorize(Roles = Roles.Doctor)]
@@ -56,11 +57,20 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
     {
         _logger.Info($"Received request to get medical letter id={id}.");
         var letter = await _letterService.GetByIdAsync(id);
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
         if (User.IsInRole(Roles.Patient) && letter.Patient.Id != currentUserId)
         {
             return Forbid();
+        }
+
+        if (User.IsInRole(Roles.Doctor) && letter.Doctor.Id != currentUserId)
+        {
+            var hasGrant = await _grantService.HasGrantAsync(letter.Patient.Id, currentUserId, letter.Doctor.Id);
+            if (!hasGrant)
+            {
+                return Forbid();
+            }
         }
 
         return Ok(letter);
@@ -76,11 +86,20 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
     {
         _logger.Info($"Received request to get medical letter for session={sessionId}.");
         var letter = await _letterService.GetBySessionIdAsync(sessionId);
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
         if (User.IsInRole(Roles.Patient) && letter.Patient.Id != currentUserId)
         {
             return Forbid();
+        }
+
+        if (User.IsInRole(Roles.Doctor) && letter.Doctor.Id != currentUserId)
+        {
+            var hasGrant = await _grantService.HasGrantAsync(letter.Patient.Id, currentUserId, letter.Doctor.Id);
+            if (!hasGrant)
+            {
+                return Forbid();
+            }
         }
 
         return Ok(letter);
@@ -96,11 +115,20 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
     {
         _logger.Info($"Received request to download PDF for medical letter id={id}.");
         var letter = await _letterService.GetByIdAsync(id);
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
         if (User.IsInRole(Roles.Patient) && letter.Patient.Id != currentUserId)
         {
             return Forbid();
+        }
+
+        if (User.IsInRole(Roles.Doctor) && letter.Doctor.Id != currentUserId)
+        {
+            var hasGrant = await _grantService.HasGrantAsync(letter.Patient.Id, currentUserId, letter.Doctor.Id);
+            if (!hasGrant)
+            {
+                return Forbid();
+            }
         }
 
         var (bytes, fileName) = await _letterService.GetPdfAsync(id);

@@ -17,6 +17,8 @@ export interface MedicalLetterSummary {
   letterType: string;
   location: string;
   writtenAt: string;
+  authorDoctorId: string;
+  authorDoctorName: string;
 }
 
 export interface MedicalLetterPostDTO {

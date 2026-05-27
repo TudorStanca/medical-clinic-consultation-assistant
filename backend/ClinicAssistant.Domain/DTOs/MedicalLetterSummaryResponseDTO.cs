@@ -4,4 +4,6 @@ public record MedicalLetterSummaryResponseDTO(
     Guid Id,
     string LetterType,
     string Location,
-    DateTime WrittenAt);
+    DateTime WrittenAt,
+    string AuthorDoctorId,
+    string AuthorDoctorName);

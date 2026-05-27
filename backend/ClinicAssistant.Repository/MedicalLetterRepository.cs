@@ -48,10 +48,14 @@ public class MedicalLetterRepository(AppDbContext context) : IMedicalLetterRepos
     public async Task<IEnumerable<MedicalLetter>> GetByDoctorAndPatientAsync(string doctorId, string patientId, Guid? excludeSessionId, CancellationToken ct)
     {
         return await _context.MedicalLetters
-            .Include(l => l.Session)
-            .Where(l => l.Session.DoctorId == doctorId
-                && l.Session.PatientId == patientId
-                && (excludeSessionId == null || l.SessionId != excludeSessionId))
+            .Include(l => l.Session).ThenInclude(s => s.Doctor)
+            .Where(l => l.Session.PatientId == patientId
+                && (excludeSessionId == null || l.SessionId != excludeSessionId)
+                && (l.Session.DoctorId == doctorId
+                    || _context.LetterAccessGrants.Any(g =>
+                        g.PatientId == patientId
+                        && g.GranteeDoctorId == doctorId
+                        && g.SourceDoctorId == l.Session.DoctorId)))
             .OrderByDescending(l => l.WrittenAt)
             .ToListAsync(ct);
     }
@@ -63,8 +67,12 @@ public class MedicalLetterRepository(AppDbContext context) : IMedicalLetterRepos
         return await _context.MedicalLetters
             .Include(l => l.Session)
             .Where(l => idSet.Contains(l.Id)
-                && l.Session.DoctorId == doctorId
-                && l.Session.PatientId == patientId)
+                && l.Session.PatientId == patientId
+                && (l.Session.DoctorId == doctorId
+                    || _context.LetterAccessGrants.Any(g =>
+                        g.PatientId == patientId
+                        && g.GranteeDoctorId == doctorId
+                        && g.SourceDoctorId == l.Session.DoctorId)))
             .OrderBy(l => l.WrittenAt)
             .ToListAsync(ct);
     }
