@@ -1,8 +1,10 @@
 using System.Net.WebSockets;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.Entities;
+using ClinicAssistant.Service;
 using ClinicAssistant.Service.Interfaces;
 using log4net;
+using Microsoft.Extensions.Options;
 
 namespace ClinicAssistant.WebSockets;
 
@@ -27,16 +29,29 @@ public static class AudioWebSocketHandler
         using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
         Log.Info($"WebSocket accepted for session {sessionId}.");
 
-        var tempPath = Path.GetTempFileName();
+        string audioFilePath;
+        using (var configScope = scopeFactory.CreateScope())
+        {
+            var fileStorage = configScope.ServiceProvider.GetRequiredService<IOptions<FileStorageSettings>>().Value;
+            Directory.CreateDirectory(fileStorage.AudioPath);
+            audioFilePath = Path.Combine(fileStorage.AudioPath, $"{sessionId}-stream.pcm");
+        }
+
+        using (var initScope = scopeFactory.CreateScope())
+        {
+            var initService = initScope.ServiceProvider.GetRequiredService<IConsultationSessionService>();
+            await initService.SetAudioFilePathAsync(sessionId, audioFilePath);
+        }
+
         try
         {
             var receiveBuffer = new byte[32 * 1024];
             using var cts = new CancellationTokenSource();
 
             await using (var fileStream = new FileStream(
-                tempPath, FileMode.Open, FileAccess.Write, FileShare.Read, 32 * 1024, useAsync: true))
+                audioFilePath, FileMode.Create, FileAccess.Write, FileShare.Read, 32 * 1024, useAsync: true))
             {
-                var periodicTask = RunPeriodicTranscriptionAsync(sessionId, tempPath, fileStream, scopeFactory, cts.Token);
+                var periodicTask = RunPeriodicTranscriptionAsync(sessionId, audioFilePath, fileStream, scopeFactory, cts.Token);
 
                 try
                 {
@@ -69,7 +84,7 @@ public static class AudioWebSocketHandler
                 catch (OperationCanceledException) { }
             }
 
-            var pcmBytes = await File.ReadAllBytesAsync(tempPath, CancellationToken.None);
+            var pcmBytes = await File.ReadAllBytesAsync(audioFilePath, CancellationToken.None);
 
             using var stopScope = scopeFactory.CreateScope();
             var stopService = stopScope.ServiceProvider.GetRequiredService<IConsultationSessionService>();
@@ -77,7 +92,10 @@ public static class AudioWebSocketHandler
         }
         finally
         {
-            File.Delete(tempPath);
+            if (File.Exists(audioFilePath))
+            {
+                File.Delete(audioFilePath);
+            }
         }
     }
 

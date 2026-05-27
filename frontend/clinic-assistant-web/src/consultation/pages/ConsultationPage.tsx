@@ -3,6 +3,7 @@ import { useNavigate, useParams, useBlocker } from "react-router-dom";
 import axios from "axios";
 import type { ReactNode } from "react";
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
@@ -13,6 +14,7 @@ import {
   DialogTitle,
   FormControlLabel,
   Skeleton,
+  Snackbar,
   Switch,
   Typography,
 } from "@mui/material";
@@ -104,7 +106,13 @@ const ConsultationPage = () => {
   const navigate = useNavigate();
   const { getSessionById, getTranscript, patchStatus, setTranscriptAccess } = useConsultationApi();
   const { getLetterBySessionId } = useMedicalLetterApi();
-  const { startStreaming, stopStreaming, pauseStreaming, resumeStreaming } = useAudioWebSocket();
+  const { startStreaming, stopStreaming, pauseStreaming, resumeStreaming } = useAudioWebSocket({
+    onUnexpectedDisconnect: () => {
+      setRecording(false);
+      setPaused(false);
+      setDisconnectAlertOpen(true);
+    },
+  });
   const { hasRole, user } = useAuth();
   const { setHeader } = usePageHeader();
 
@@ -124,6 +132,7 @@ const ConsultationPage = () => {
   const [testMicOpen, setTestMicOpen] = useState(false);
   const notify = useNotification();
   const [loading, setLoading] = useState(true);
+  const [disconnectAlertOpen, setDisconnectAlertOpen] = useState(false);
 
   const isDoctor = hasRole(Roles.Doctor);
   const isSessionDoctor = isDoctor && user?.id === doctorId;
@@ -586,6 +595,24 @@ const ConsultationPage = () => {
           onClose={() => setGenerateOpen(false)}
         />
       )}
+
+      <Snackbar
+        open={disconnectAlertOpen}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        onClose={(_, reason) => {
+          if (reason !== "clickaway") {
+            setDisconnectAlertOpen(false);
+          }
+        }}
+      >
+        <Alert
+          severity="warning"
+          onClose={() => setDisconnectAlertOpen(false)}
+          sx={{ width: "100%" }}
+        >
+          Conexiunea s-a întrerupt. Sesiunea se finalizează automat cu audio-ul recepționat până la acest moment.
+        </Alert>
+      </Snackbar>
 
       <TestMicrophoneDialog open={testMicOpen} onClose={() => setTestMicOpen(false)} />
 

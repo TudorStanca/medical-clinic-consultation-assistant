@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -19,9 +19,10 @@ import {
   Typography,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import useMedicalLetterApi from "@/medicalLetter/useMedicalLetterApi";
 import ErrorBanner from "@/shared/components/ErrorBanner";
-import { extractErrorMessages } from "@/core/errorMessages";
+import { extractErrorMessages, isNetworkError } from "@/core/errorMessages";
 import type { MedicalLetterResponseDTO, MedicalLetterSummary } from "@/medicalLetter/props";
 import { MS_LIGHT } from "@/theme/tokens";
 
@@ -46,6 +47,30 @@ const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose
   const [selectedLetterIds, setSelectedLetterIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [lastErrorWasNetwork, setLastErrorWasNetwork] = useState(false);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current !== null) {
+        clearInterval(cooldownRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setRetryCount(0);
+      setCooldownSeconds(0);
+      setLastErrorWasNetwork(false);
+      if (cooldownRef.current !== null) {
+        clearInterval(cooldownRef.current);
+        cooldownRef.current = null;
+      }
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open || !patientId) {
@@ -72,6 +97,7 @@ const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose
 
   const handleGenerate = async () => {
     setErrors([]);
+    setLastErrorWasNetwork(false);
     setLoading(true);
     try {
       const letter = await createLetter({
@@ -84,10 +110,28 @@ const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose
       onGenerated(letter);
     } catch (err) {
       setErrors(extractErrorMessages(err));
+      if (isNetworkError(err)) {
+        setLastErrorWasNetwork(true);
+        setRetryCount((prev) => prev + 1);
+        setCooldownSeconds(15);
+        cooldownRef.current = setInterval(() => {
+          setCooldownSeconds((prev) => {
+            if (prev <= 1) {
+              clearInterval(cooldownRef.current!);
+              cooldownRef.current = null;
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const showRetryButton = lastErrorWasNetwork && retryCount < 2;
+  const showGiveUpMessage = lastErrorWasNetwork && retryCount >= 2;
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -103,6 +147,25 @@ const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: "16px", pt: "4px" }}>
           <ErrorBanner messages={errors} />
+
+          {showRetryButton && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
+              disabled={loading || cooldownSeconds > 0}
+              onClick={handleGenerate}
+              sx={{ alignSelf: "flex-start" }}
+            >
+              {cooldownSeconds > 0 ? `Reîncearcă în ${cooldownSeconds}s` : "Încearcă din nou"}
+            </Button>
+          )}
+
+          {showGiveUpMessage && (
+            <Typography sx={{ fontSize: "0.8125rem", color: T.textMuted }}>
+              Serviciul de generare nu răspunde. Reveniți mai târziu.
+            </Typography>
+          )}
 
           {loading && (
             <Box
@@ -246,7 +309,7 @@ const GenerateLetterDialog = ({ open, sessionId, patientId, onGenerated, onClose
         <Button
           onClick={handleGenerate}
           variant="contained"
-          disabled={!location || loading}
+          disabled={!location || loading || lastErrorWasNetwork}
           startIcon={loading ? undefined : <AutoAwesomeIcon sx={{ fontSize: 16 }} />}
         >
           {loading ? <CircularProgress size={20} color="inherit" /> : "Generează"}

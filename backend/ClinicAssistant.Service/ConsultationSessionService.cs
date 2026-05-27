@@ -94,12 +94,6 @@ public class ConsultationSessionService(
         {
             _logger.Info($"Stopping session {sessionId}, transcribing {pcmData.Length / 1024} KB of PCM.");
 
-            var audioDir = _fileStorage.AudioPath;
-            Directory.CreateDirectory(audioDir);
-            var audioPath = Path.Combine(audioDir, $"{sessionId}.pcm");
-            await File.WriteAllBytesAsync(audioPath, pcmData, ct);
-            session.AudioFilePath = audioPath;
-
             session.MarkProcessing();
             await _sessionRepo.UpdateAsync(session);
 
@@ -122,15 +116,15 @@ public class ConsultationSessionService(
 
             try
             {
-                if (File.Exists(audioPath))
+                if (session.AudioFilePath is not null && File.Exists(session.AudioFilePath))
                 {
-                    File.Delete(audioPath);
-                    _logger.Info($"Audio file deleted after successful transcription: {audioPath}");
+                    File.Delete(session.AudioFilePath);
+                    _logger.Info($"Audio file deleted after successful transcription: {session.AudioFilePath}");
                 }
             }
             catch (Exception delEx)
             {
-                _logger.Warn($"Failed to delete audio file {audioPath}: {delEx.Message}");
+                _logger.Warn($"Failed to delete audio file {session.AudioFilePath}: {delEx.Message}");
             }
         }
         catch (Exception ex)
@@ -140,6 +134,24 @@ public class ConsultationSessionService(
             session.MarkFailed();
             await _sessionRepo.UpdateAsync(session);
             await _publisher.PublishStatusAsync(sessionId, session.Status.ToString(), ct);
+
+            if (session.AudioFilePath is not null)
+            {
+                try
+                {
+                    if (File.Exists(session.AudioFilePath))
+                    {
+                        File.Delete(session.AudioFilePath);
+                        _logger.Info($"Audio file deleted after failed transcription: {session.AudioFilePath}");
+                    }
+                    session.AudioFilePath = null;
+                    await _sessionRepo.UpdateAsync(session);
+                }
+                catch (Exception delEx)
+                {
+                    _logger.Warn($"Failed to delete audio file on Failed status: {delEx.Message}");
+                }
+            }
 
             throw;
         }
@@ -238,5 +250,41 @@ public class ConsultationSessionService(
         }
 
         await _sessionRepo.UpdateAsync(session);
+    }
+
+    public async Task SetAudioFilePathAsync(Guid sessionId, string audioFilePath)
+    {
+        var session = await _sessionRepo.GetByIdAsync(sessionId)
+            ?? throw new NotFoundException($"Session {sessionId} not found.");
+
+        session.AudioFilePath = audioFilePath;
+        await _sessionRepo.UpdateAsync(session);
+    }
+
+    public async Task<int> CleanupInterruptedAsync(CancellationToken ct = default)
+    {
+        var sessions = await _sessionRepo.GetActiveSessionsAsync(ct);
+
+        foreach (var session in sessions)
+        {
+            if (session.AudioFilePath is not null)
+            {
+                try
+                {
+                    if (File.Exists(session.AudioFilePath))
+                    {
+                        File.Delete(session.AudioFilePath);
+                        _logger.Info($"Deleted orphaned audio for session {session.Id}: {session.AudioFilePath}");
+                    }
+                    session.AudioFilePath = null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Failed to clean up audio for session {session.Id}: {ex.Message}");
+                }
+            }
+        }
+
+        return await _sessionRepo.MarkActiveAsInterruptedAsync(ct);
     }
 }

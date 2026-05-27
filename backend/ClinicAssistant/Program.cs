@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using ClinicAssistant.AudioTranscribers;
 using QuestPDF.Infrastructure;
@@ -19,9 +20,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly;
 
 namespace ClinicAssistant;
 
@@ -193,7 +196,30 @@ public class Program
         }
         else
         {
-            builder.Services.AddHttpClient<ILlmService, ClaudeService>();
+            builder.Services.AddHttpClient<ILlmService, ClaudeService>()
+                .AddResilienceHandler("claude-pipeline", pipelineBuilder =>
+                {
+                    pipelineBuilder.AddRetry(new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 2,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromSeconds(2),
+                        ShouldHandle = static args => args.Outcome switch
+                        {
+                            { Exception: HttpRequestException } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.RequestTimeout } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.InternalServerError } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.BadGateway } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.GatewayTimeout } => PredicateResult.True(),
+                            { Result.StatusCode: (HttpStatusCode)529 } => PredicateResult.True(),
+                            _ => PredicateResult.False()
+                        }
+                    });
+                    pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(60));
+                });
         }
 
         // SignalR publisher (Singleton — stateless)
@@ -282,11 +308,11 @@ public class Program
     private static async Task CleanupInterruptedSessionsAsync(WebApplication app)
     {
         using var scope = app.Services.CreateScope();
-        var sessionRepo = scope.ServiceProvider.GetRequiredService<IConsultationSessionRepository>();
-        var count = await sessionRepo.MarkActiveAsInterruptedAsync();
+        var sessionService = scope.ServiceProvider.GetRequiredService<IConsultationSessionService>();
+        var count = await sessionService.CleanupInterruptedAsync();
         if (count > 0)
         {
-            StartupLog.Warn($"Startup cleanup: marked {count} active session(s) as Interrupted.");
+            StartupLog.Warn($"Startup cleanup: marked {count} active session(s) as Interrupted and deleted their audio files.");
         }
     }
 

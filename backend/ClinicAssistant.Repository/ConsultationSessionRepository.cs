@@ -137,6 +137,13 @@ public class ConsultationSessionRepository(AppDbContext context) : IConsultation
             (s.Status == SessionStatus.Recording || s.Status == SessionStatus.Processing));
     }
 
+    public async Task<IReadOnlyList<ConsultationSession>> GetActiveSessionsAsync(CancellationToken ct = default)
+    {
+        return await _context.ConsultationSessions
+            .Where(s => s.Status == SessionStatus.Recording || s.Status == SessionStatus.Processing)
+            .ToListAsync(ct);
+    }
+
     public async Task<int> MarkActiveAsInterruptedAsync(CancellationToken ct = default)
     {
         var sessions = await _context.ConsultationSessions

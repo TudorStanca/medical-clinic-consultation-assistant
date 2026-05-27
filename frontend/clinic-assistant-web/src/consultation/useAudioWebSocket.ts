@@ -1,13 +1,20 @@
 import { useRef } from "react";
 
-const useAudioWebSocket = () => {
+interface UseAudioWebSocketOptions {
+  onUnexpectedDisconnect?: () => void;
+}
+
+const useAudioWebSocket = ({ onUnexpectedDisconnect }: UseAudioWebSocketOptions = {}) => {
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pausedRef = useRef(false);
+  const closedByUserRef = useRef(false);
 
   const startStreaming = async (sessionId: string) => {
+    closedByUserRef.current = false;
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     streamRef.current = stream;
 
@@ -28,6 +35,18 @@ const useAudioWebSocket = () => {
       ws.onopen = () => resolve();
       ws.onerror = (e) => reject(e);
     });
+
+    ws.onclose = () => {
+      if (!closedByUserRef.current) {
+        onUnexpectedDisconnect?.();
+      }
+    };
+
+    ws.onerror = () => {
+      if (!closedByUserRef.current) {
+        onUnexpectedDisconnect?.();
+      }
+    };
 
     workletNode.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
       if (pausedRef.current) {
@@ -59,6 +78,7 @@ const useAudioWebSocket = () => {
   };
 
   const stopStreaming = () => {
+    closedByUserRef.current = true;
     pausedRef.current = false;
 
     workletNodeRef.current?.disconnect();

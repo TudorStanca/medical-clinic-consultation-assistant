@@ -14,4 +14,6 @@ public interface IConsultationSessionService
     Task DeleteSessionAsync(Guid sessionId, string requestingDoctorId);
     Task SetPatientTranscriptAccessAsync(Guid sessionId, string requestingDoctorId, bool allow);
     Task<DashboardStatsResponseDTO> GetDashboardStatsAsync(string userId, IEnumerable<string> roles);
+    Task SetAudioFilePathAsync(Guid sessionId, string audioFilePath);
+    Task<int> CleanupInterruptedAsync(CancellationToken ct = default);
 }

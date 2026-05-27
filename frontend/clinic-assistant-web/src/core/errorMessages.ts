@@ -1,5 +1,18 @@
+import axios from "axios";
 import type { AxiosError } from "axios";
 import type { ValidationErrorResponse, CustomErrorResponse } from "@/shared/types/api";
+
+export function isNetworkError(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+  if (!error.response || error.code === "ECONNABORTED" || error.code === "ERR_NETWORK") {
+    return true;
+  }
+  const status = error.response.status;
+
+  return status === 500 || status === 502 || status === 503 || status === 504;
+}
 
 export function extractErrorMessages(error: unknown): string[] {
   const axiosError = error as AxiosError;
