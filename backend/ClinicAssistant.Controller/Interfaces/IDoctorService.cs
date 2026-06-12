@@ -8,4 +8,5 @@ public interface IDoctorService
     Task<DoctorResponseDTO> GetByIdAsync(string id);
     Task<PagedResponseDTO<DoctorResponseDTO>> GetPagedAsync(PagedQueryDTO query);
     Task<DoctorStatsResponseDTO> GetStatsAsync(string doctorId);
+    Task<IEnumerable<DoctorSearchableResponseDTO>> GetSearchableAsync(string? search);
 }

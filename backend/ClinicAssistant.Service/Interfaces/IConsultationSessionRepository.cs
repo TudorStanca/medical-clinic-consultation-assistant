@@ -14,6 +14,7 @@ public interface IConsultationSessionRepository
     Task UpdateAsync(ConsultationSession session);
     Task AddSegmentsAsync(IEnumerable<TranscriptSegment> segments);
     Task<bool> HasActiveSessionAsync(string doctorId);
+    Task<IReadOnlyList<ConsultationSession>> GetActiveSessionsAsync(CancellationToken ct = default);
     Task<int> MarkActiveAsInterruptedAsync(CancellationToken ct = default);
     Task DeleteAsync(ConsultationSession session);
     Task<int> CountByDoctorAsync(string doctorId);

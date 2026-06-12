@@ -13,6 +13,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<TranscriptSegment> TranscriptSegments { get; set; }
     public DbSet<MedicalLetter> MedicalLetters { get; set; }
     public DbSet<UploadedDocument> UploadedDocuments { get; set; }
+    public DbSet<LetterAttachment> LetterAttachments { get; set; }
+    public DbSet<LetterAccessGrant> LetterAccessGrants { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -67,6 +69,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
 
         builder.Entity<MedicalLetter>()
             .Navigation(l => l.Documents).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // LetterAttachment → MedicalLetter (Cascade)
+        builder.Entity<LetterAttachment>()
+            .HasOne(a => a.MedicalLetter).WithMany(l => l.Attachments)
+            .HasForeignKey(a => a.MedicalLetterId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<MedicalLetter>()
+            .Navigation(l => l.Attachments).UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // LetterAccessGrant → Patient / GranteeDoctor / SourceDoctor (Restrict on delete)
+        builder.Entity<LetterAccessGrant>()
+            .HasOne(g => g.Patient).WithMany()
+            .HasForeignKey(g => g.PatientId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<LetterAccessGrant>()
+            .HasOne(g => g.GranteeDoctor).WithMany()
+            .HasForeignKey(g => g.GranteeDoctorId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<LetterAccessGrant>()
+            .HasOne(g => g.SourceDoctor).WithMany()
+            .HasForeignKey(g => g.SourceDoctorId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<LetterAccessGrant>()
+            .HasIndex(g => new { g.PatientId, g.GranteeDoctorId, g.SourceDoctorId }).IsUnique();
 
         // Sex enum → string in DB
         builder.Entity<Patient>()

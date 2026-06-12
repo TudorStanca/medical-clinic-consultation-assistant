@@ -17,8 +17,8 @@ const useConsultationApi = () => {
   const { axios } = useApiClient();
 
   const createSession = useCallback(
-    async (doctorId: string, patientId: string): Promise<SessionCreatedResponse> => {
-      const res = await axios.post<SessionCreatedResponse>(sessionUrl, { doctorId, patientId });
+    async (patientId: string): Promise<SessionCreatedResponse> => {
+      const res = await axios.post<SessionCreatedResponse>(sessionUrl, { patientId });
 
       return res.data;
     },
@@ -74,7 +74,14 @@ const useConsultationApi = () => {
     return res.data;
   }, [axios]);
 
-  return { createSession, getSessionById, getTranscript, patchStatus, getSessionsPaged, deleteSession, getDashboardStats };
+  const setTranscriptAccess = useCallback(
+    async (sessionId: string, allow: boolean): Promise<void> => {
+      await axios.patch(`${sessionUrl}/${sessionId}/transcript-access`, { allow });
+    },
+    [axios]
+  );
+
+  return { createSession, getSessionById, getTranscript, patchStatus, getSessionsPaged, deleteSession, getDashboardStats, setTranscriptAccess };
 };
 
 export default useConsultationApi;

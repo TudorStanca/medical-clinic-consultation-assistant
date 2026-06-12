@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text;
+using System.Threading.RateLimiting;
 using ClinicAssistant.AudioTranscribers;
 using QuestPDF.Infrastructure;
 using ClinicAssistant.Configuration;
@@ -18,10 +20,13 @@ using log4net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly;
 
 namespace ClinicAssistant;
 
@@ -98,6 +103,11 @@ public class Program
             });
         });
 
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("LOG_FILE_PATH")))
+        {
+            Environment.SetEnvironmentVariable("LOG_FILE_PATH", "Logs/logs.txt");
+        }
+
         builder.Logging.ClearProviders();
         builder.Logging.AddLog4Net("log4net.config");
 
@@ -157,12 +167,29 @@ public class Program
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
                 ClockSkew = TimeSpan.Zero
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken) &&
+                        (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/ws")))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
         });
 
         // Repositories (Scoped)
         builder.Services.AddScoped<IConsultationSessionRepository, ConsultationSessionRepository>();
         builder.Services.AddScoped<IMedicalLetterRepository, MedicalLetterRepository>();
         builder.Services.AddScoped<IUploadedDocumentRepository, UploadedDocumentRepository>();
+        builder.Services.AddScoped<ILetterAttachmentRepository, LetterAttachmentRepository>();
+        builder.Services.AddScoped<ILetterAccessGrantRepository, LetterAccessGrantRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
 
         // Services (Scoped)
@@ -172,6 +199,8 @@ public class Program
         builder.Services.AddScoped<IUploadedDocumentService, UploadedDocumentService>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IMedicalLetterService, MedicalLetterService>();
+        builder.Services.AddScoped<ILetterAttachmentService, LetterAttachmentService>();
+        builder.Services.AddScoped<ILetterAccessGrantService, LetterAccessGrantService>();
         builder.Services.AddScoped<MedicalLetterPdfGenerator>();
 
         // Document text extractors (Singleton — stateless)
@@ -186,8 +215,43 @@ public class Program
         }
         else
         {
-            builder.Services.AddHttpClient<ILlmService, ClaudeService>();
+            builder.Services.AddHttpClient<ILlmService, ClaudeService>()
+                .AddResilienceHandler("claude-pipeline", pipelineBuilder =>
+                {
+                    pipelineBuilder.AddRetry(new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 2,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromSeconds(2),
+                        ShouldHandle = static args => args.Outcome switch
+                        {
+                            { Exception: HttpRequestException } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.RequestTimeout } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.TooManyRequests } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.InternalServerError } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.BadGateway } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.ServiceUnavailable } => PredicateResult.True(),
+                            { Result.StatusCode: HttpStatusCode.GatewayTimeout } => PredicateResult.True(),
+                            { Result.StatusCode: (HttpStatusCode)529 } => PredicateResult.True(),
+                            _ => PredicateResult.False()
+                        }
+                    });
+                    pipelineBuilder.AddTimeout(TimeSpan.FromSeconds(60));
+                });
         }
+
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddFixedWindowLimiter("login", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 5;
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.QueueLimit = 0;
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            });
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        });
 
         // SignalR publisher (Singleton — stateless)
         builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
@@ -203,6 +267,12 @@ public class Program
         }
 
         var app = builder.Build();
+
+        using (var scope = app.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await dbContext.Database.MigrateAsync();
+        }
 
         await SeedAsync(app);
         await CleanupInterruptedSessionsAsync(app);
@@ -221,12 +291,14 @@ public class Program
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseRateLimiter();
 
         app.MapControllers();
         app.MapHub<TranscriptionHub>("/hubs/transcription");
 
         app.Map("/ws/audio/{sessionId:guid}", async (HttpContext ctx, Guid sessionId, IServiceScopeFactory sf) =>
-            await AudioWebSocketHandler.HandleAsync(ctx, sessionId, sf));
+            await AudioWebSocketHandler.HandleAsync(ctx, sessionId, sf))
+            .RequireAuthorization(policy => policy.RequireRole(Roles.Doctor));
 
         if (app.Environment.IsDevelopment())
         {
@@ -269,11 +341,11 @@ public class Program
     private static async Task CleanupInterruptedSessionsAsync(WebApplication app)
     {
         using var scope = app.Services.CreateScope();
-        var sessionRepo = scope.ServiceProvider.GetRequiredService<IConsultationSessionRepository>();
-        var count = await sessionRepo.MarkActiveAsInterruptedAsync();
+        var sessionService = scope.ServiceProvider.GetRequiredService<IConsultationSessionService>();
+        var count = await sessionService.CleanupInterruptedAsync();
         if (count > 0)
         {
-            StartupLog.Warn($"Startup cleanup: marked {count} active session(s) as Interrupted.");
+            StartupLog.Warn($"Startup cleanup: marked {count} active session(s) as Interrupted and deleted their audio files.");
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ClinicAssistant.Configuration;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Service;
@@ -22,22 +23,31 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
     {
         _settings = options.Value;
 
-        var modelPath = Path.Combine(AppContext.BaseDirectory, fileStorageOptions.Value.ModelsPath, _settings.ModelFileName);
+        var modelPath = Path.Combine(Directory.GetCurrentDirectory(), fileStorageOptions.Value.ModelsPath, _settings.ModelFileName);
 
         if (!File.Exists(modelPath))
         {
-            Log.Info($"Whisper model not found at {modelPath}. Downloading ggml-medium...");
+            Log.Info($"Whisper model not found at {modelPath}. Downloading...");
             Directory.CreateDirectory(Path.GetDirectoryName(modelPath)!);
-            DownloadModelAsync(modelPath).GetAwaiter().GetResult();
+            DownloadModelAsync(modelPath, _settings.ModelFileName).GetAwaiter().GetResult();
             Log.Info("Whisper model download complete.");
         }
 
         if (_settings.UseCuda)
         {
-            Log.Info("UseCuda=true — initializing CUDA runtime.");
-            RuntimeOptions.RuntimeLibraryOrder = [RuntimeLibrary.Cuda];
-            _factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions { GpuDevice = 0 });
-            Log.Info("WhisperFactory initialized with CUDA.");
+            try
+            {
+                RuntimeOptions.RuntimeLibraryOrder = [RuntimeLibrary.Cuda, RuntimeLibrary.Cpu];
+                _factory = WhisperFactory.FromPath(modelPath, new WhisperFactoryOptions { GpuDevice = 0 });
+                Log.Info("WhisperFactory initialized with CUDA.");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"CUDA init failed ({ex.Message}). Falling back to CPU.");
+                RuntimeOptions.RuntimeLibraryOrder = [RuntimeLibrary.Cpu];
+                _factory = WhisperFactory.FromPath(modelPath);
+                Log.Info("WhisperFactory initialized with CPU (fallback).");
+            }
         }
         else
         {
@@ -48,9 +58,18 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
         }
     }
 
-    private static async Task DownloadModelAsync(string modelPath)
+    private static async Task DownloadModelAsync(string modelPath, string modelFileName)
     {
-        using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(GgmlType.Medium);
+        var stem = Path.GetFileNameWithoutExtension(modelFileName)
+            .Replace("ggml-", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("-", string.Empty);
+
+        if (!Enum.TryParse<GgmlType>(stem, ignoreCase: true, out var ggmlType))
+        {
+            throw new InvalidOperationException($"Cannot determine GgmlType from ModelFileName '{modelFileName}'. Unrecognized model type '{stem}'.");
+        }
+
+        using var modelStream = await WhisperGgmlDownloader.Default.GetGgmlModelAsync(ggmlType);
         using var fileStream = File.OpenWrite(modelPath);
         await modelStream.CopyToAsync(fileStream);
     }
@@ -67,12 +86,31 @@ public class WhisperAudioTranscriber : IAudioTranscriber, IAsyncDisposable
         await _semaphore.WaitAsync(ct);
         try
         {
-            Log.Info($"Wrapping {pcmData.Length / 1024} KB of PCM into WAV and starting Whisper...");
+            if (_settings.LogTimings)
+            {
+                var audioDurationMs = (long)pcmData.Length * 1000 / (2 * 16000);
+                Log.Info($"Whisper start: pcm={pcmData.Length / 1024} KB, samples={pcmData.Length / 2}, audioDuration={audioDurationMs} ms");
+            }
+
+            var sw = _settings.LogTimings ? Stopwatch.StartNew() : null;
 
             var wavBytes = WrapPcmInWav(pcmData);
             var segments = await TranscribeWavAsync(wavBytes, ct);
 
-            Log.Info($"Whisper done, {segments.Count} segment(s).");
+            if (_settings.LogTimings && sw is not null)
+            {
+                sw.Stop();
+                var audioDurationMs = (long)pcmData.Length * 1000 / (2 * 16000);
+                var rtf = audioDurationMs > 0 ? (double)sw.ElapsedMilliseconds / audioDurationMs : 0;
+                Log.Info($"Whisper end: {sw.ElapsedMilliseconds} ms, segments={segments.Count}, RTF={rtf:F3}");
+
+                var fullTranscript = string.Join(" ", segments.Select(s => s.Text));
+                Log.Info($"Whisper transcript: {fullTranscript}");
+            }
+            else
+            {
+                Log.Info($"Whisper done, {segments.Count} segment(s).");
+            }
 
             return segments;
         }

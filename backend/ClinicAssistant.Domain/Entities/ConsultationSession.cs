@@ -20,6 +20,13 @@ public class ConsultationSession
 
     public MedicalLetter? MedicalLetter { get; set; }
 
+    public bool PatientTranscriptAccess { get; private set; }
+
+    public void SetPatientTranscriptAccess(bool allow)
+    {
+        PatientTranscriptAccess = allow;
+    }
+
     public void MarkRecording() => Status = SessionStatus.Recording;
     public void MarkProcessing() => Status = SessionStatus.Processing;
 

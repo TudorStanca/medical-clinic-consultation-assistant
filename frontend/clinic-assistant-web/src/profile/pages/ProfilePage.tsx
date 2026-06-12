@@ -5,6 +5,7 @@ import { Roles } from "@/shared/types/enums";
 import PersonalInfoTab from "@/profile/components/PersonalInfoTab";
 import DoctorStatsTab from "@/profile/components/DoctorStatsTab";
 import SecurityTab from "@/profile/components/SecurityTab";
+import LetterAccessSection from "@/access/components/LetterAccessSection";
 import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
 import { usePageHeader } from "@/shared/PageHeaderContext";
 
@@ -47,6 +48,7 @@ const ProfilePage = () => {
 
   const showStats = hasRole(Roles.Doctor);
   const showSecurity = !hasRole(Roles.Admin);
+  const showAccess = hasRole(Roles.Patient);
 
   useEffect(() => {
     setHeader({ title: "Profilul meu", subtitle: "Gestionare date personale și securitate" });
@@ -56,6 +58,7 @@ const ProfilePage = () => {
   const tabs = [
     { label: "Date personale", component: <PersonalInfoTab /> },
     ...(showStats ? [{ label: "Statistici", component: <DoctorStatsTab /> }] : []),
+    ...(showAccess ? [{ label: "Acces scrisori", component: <LetterAccessSection /> }] : []),
     ...(showSecurity ? [{ label: "Securitate", component: <SecurityTab /> }] : []),
   ];
 

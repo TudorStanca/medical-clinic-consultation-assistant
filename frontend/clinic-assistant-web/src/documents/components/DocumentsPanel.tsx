@@ -136,7 +136,6 @@ const DocumentsPanel = ({ patientId, sessionId, readOnly = false }: Props) => {
         <UploadDocumentDialog
           open={uploadOpen}
           patientId={patientId}
-          uploadedByUserId={user.id}
           sessionId={sessionId}
           onUploaded={handleUploaded}
           onClose={() => setUploadOpen(false)}

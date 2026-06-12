@@ -4,6 +4,7 @@ using ClinicAssistant.Domain.DTOs;
 using log4net;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ClinicAssistant.Controller.Controllers;
 
@@ -16,8 +17,10 @@ public class AuthController(IAuthService authService) : ControllerBase
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     [ProducesResponseType(typeof(LoginResponseDTO), 200)]
     [ProducesResponseType(401)]
+    [ProducesResponseType(429)]
     public async Task<ActionResult> Login([FromBody] LoginRequestDTO dto)
     {
         _logger.Info($"Received login request for: {dto.Email}");

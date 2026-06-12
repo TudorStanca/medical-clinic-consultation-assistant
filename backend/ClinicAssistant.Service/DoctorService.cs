@@ -63,6 +63,15 @@ public class DoctorService(IUserRepository userRepo, IMapper mapper, IValidator<
             query.PageSize);
     }
 
+    public async Task<IEnumerable<DoctorSearchableResponseDTO>> GetSearchableAsync(string? search)
+    {
+        _logger.Info($"Getting searchable doctors. Search={search}");
+
+        var (items, _) = await _userRepo.GetDoctorPagedAsync(1, 1000, search, "lastname", "asc");
+
+        return items.Select(d => _mapper.Map<DoctorSearchableResponseDTO>(d));
+    }
+
     public async Task<DoctorStatsResponseDTO> GetStatsAsync(string doctorId)
     {
         _logger.Info($"Getting stats for doctor: {doctorId}");

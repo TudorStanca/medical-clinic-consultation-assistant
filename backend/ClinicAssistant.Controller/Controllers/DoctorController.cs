@@ -56,6 +56,18 @@ public class DoctorController(IDoctorService doctorService) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("searchable")]
+    [Authorize]
+    [ProducesResponseType(typeof(IEnumerable<DoctorSearchableResponseDTO>), 200)]
+    [ProducesResponseType(401)]
+    public async Task<ActionResult> GetSearchableDoctors([FromQuery] string? search)
+    {
+        _logger.Info($"Received request to get searchable doctors. Search={search}");
+        var doctors = await _doctorService.GetSearchableAsync(search);
+
+        return Ok(doctors);
+    }
+
     [HttpGet("me/stats")]
     [Authorize(Roles = Roles.Doctor)]
     [ProducesResponseType(typeof(DoctorStatsResponseDTO), 200)]

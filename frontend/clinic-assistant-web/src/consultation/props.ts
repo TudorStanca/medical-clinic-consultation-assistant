@@ -12,6 +12,7 @@ export interface SessionDetailResponse {
   patientId: string;
   patientFullName: string;
   createdAt: string;
+  patientTranscriptAccess: boolean;
 }
 
 export interface SessionSummaryResponse {

@@ -28,7 +28,6 @@ const T = MS_LIGHT;
 interface Props {
   open: boolean;
   patientId: string;
-  uploadedByUserId: string;
   sessionId: string | null;
   onUploaded: (doc: UploadedDocumentResponseDTO) => void;
   onClose: () => void;
@@ -37,7 +36,6 @@ interface Props {
 const UploadDocumentDialog = ({
   open,
   patientId,
-  uploadedByUserId,
   sessionId,
   onUploaded,
   onClose,
@@ -79,7 +77,7 @@ const UploadDocumentDialog = ({
     setErrors([]);
     setLoading(true);
     try {
-      const doc = await uploadDocument(file, patientId, uploadedByUserId, docType, sessionId);
+      const doc = await uploadDocument(file, patientId, docType, sessionId);
       onUploaded(doc);
       setFile(null);
       if (fileRef.current) {

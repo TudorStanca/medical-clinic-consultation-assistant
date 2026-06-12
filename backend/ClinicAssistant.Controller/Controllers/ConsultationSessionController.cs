@@ -52,8 +52,9 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     [ProducesResponseType(422)]
     public async Task<ActionResult> CreateSession([FromBody] SessionPostDTO dto)
     {
-        _logger.Info($"Received request to create consultation session. Doctor={dto.DoctorId} Patient={dto.PatientId}");
-        var response = await _sessionService.CreateSessionAsync(dto);
+        var doctorId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        _logger.Info($"Received request to create consultation session. Doctor={doctorId} Patient={dto.PatientId}");
+        var response = await _sessionService.CreateSessionAsync(dto, doctorId);
 
         return CreatedAtAction(nameof(GetSession), new { sessionId = response.SessionId }, response);
     }
@@ -75,6 +76,11 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
             return Forbid();
         }
 
+        if (User.IsInRole(Roles.Doctor) && session.DoctorId != currentUserId)
+        {
+            return Forbid();
+        }
+
         return Ok(session);
     }
 
@@ -91,6 +97,16 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (User.IsInRole(Roles.Patient) && session.PatientId != currentUserId)
+        {
+            return Forbid();
+        }
+
+        if (User.IsInRole(Roles.Doctor) && session.DoctorId != currentUserId)
+        {
+            return Forbid();
+        }
+
+        if (User.IsInRole(Roles.Patient) && !session.PatientTranscriptAccess)
         {
             return Forbid();
         }
@@ -126,7 +142,33 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     public async Task<ActionResult> UpdateStatus(Guid sessionId, [FromBody] SessionStatusPatchDTO dto)
     {
         _logger.Info($"Received request to update session={sessionId} status to {dto.Status}");
+
+        if (User.IsInRole(Roles.Doctor))
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session.DoctorId != currentUserId)
+            {
+                return Forbid();
+            }
+        }
+
         await _sessionService.UpdateStatusAsync(sessionId, dto.Status);
+
+        return NoContent();
+    }
+
+    [HttpPatch("{sessionId:guid}/transcript-access")]
+    [Authorize(Roles = Roles.Doctor)]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult> SetTranscriptAccess(Guid sessionId, [FromBody] SessionTranscriptAccessPatchDTO dto)
+    {
+        _logger.Info($"Received request to set transcript access={dto.Allow} for session={sessionId}");
+        var doctorId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _sessionService.SetPatientTranscriptAccessAsync(sessionId, doctorId, dto.Allow);
 
         return NoContent();
     }

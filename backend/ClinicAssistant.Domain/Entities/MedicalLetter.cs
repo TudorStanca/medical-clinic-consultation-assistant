@@ -25,5 +25,8 @@ public class MedicalLetter
         _documents.Add(doc);
     }
 
+    private readonly List<LetterAttachment> _attachments = [];
+    public IReadOnlyList<LetterAttachment> Attachments => _attachments;
+
     public ConsultationSession Session { get; set; } = null!;
 }

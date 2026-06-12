@@ -119,6 +119,9 @@ namespace ClinicAssistant.Repository.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("PatientTranscriptAccess")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -130,6 +133,77 @@ namespace ClinicAssistant.Repository.Migrations
                     b.HasIndex("PatientId");
 
                     b.ToTable("ConsultationSessions");
+                });
+
+            modelBuilder.Entity("ClinicAssistant.Domain.Entities.LetterAccessGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GranteeDoctorId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PatientId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceDoctorId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GranteeDoctorId");
+
+                    b.HasIndex("SourceDoctorId");
+
+                    b.HasIndex("PatientId", "GranteeDoctorId", "SourceDoctorId")
+                        .IsUnique();
+
+                    b.ToTable("LetterAccessGrants");
+                });
+
+            modelBuilder.Entity("ClinicAssistant.Domain.Entities.LetterAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Caption")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("MedicalLetterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UploadedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicalLetterId");
+
+                    b.ToTable("LetterAttachments");
                 });
 
             modelBuilder.Entity("ClinicAssistant.Domain.Entities.MedicalLetter", b =>
@@ -446,6 +520,44 @@ namespace ClinicAssistant.Repository.Migrations
                     b.Navigation("Patient");
                 });
 
+            modelBuilder.Entity("ClinicAssistant.Domain.Entities.LetterAccessGrant", b =>
+                {
+                    b.HasOne("ClinicAssistant.Domain.Entities.Doctor", "GranteeDoctor")
+                        .WithMany()
+                        .HasForeignKey("GranteeDoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ClinicAssistant.Domain.Entities.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ClinicAssistant.Domain.Entities.Doctor", "SourceDoctor")
+                        .WithMany()
+                        .HasForeignKey("SourceDoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("GranteeDoctor");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("SourceDoctor");
+                });
+
+            modelBuilder.Entity("ClinicAssistant.Domain.Entities.LetterAttachment", b =>
+                {
+                    b.HasOne("ClinicAssistant.Domain.Entities.MedicalLetter", "MedicalLetter")
+                        .WithMany("Attachments")
+                        .HasForeignKey("MedicalLetterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MedicalLetter");
+                });
+
             modelBuilder.Entity("ClinicAssistant.Domain.Entities.MedicalLetter", b =>
                 {
                     b.HasOne("ClinicAssistant.Domain.Entities.ConsultationSession", "Session")
@@ -571,6 +683,8 @@ namespace ClinicAssistant.Repository.Migrations
 
             modelBuilder.Entity("ClinicAssistant.Domain.Entities.MedicalLetter", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Documents");
                 });
 #pragma warning restore 612, 618

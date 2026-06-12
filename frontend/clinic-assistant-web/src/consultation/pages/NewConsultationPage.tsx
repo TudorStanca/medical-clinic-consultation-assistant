@@ -49,7 +49,7 @@ const NewConsultationPage = () => {
     }
     setLoading(true);
     try {
-      const { sessionId } = await createSession(user.id, patient.id);
+      const { sessionId } = await createSession(patient.id);
       navigate(`/consultations/${sessionId}`);
     } catch (err) {
       extractErrorMessages(err).forEach((m) => notify(m, "error"));

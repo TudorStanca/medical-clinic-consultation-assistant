@@ -10,6 +10,7 @@
     <PackageReference Include="log4net" Version="3.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.9" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="8.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
     <PackageReference Include="Whisper.net" Version="1.9.0" />
@@ -27,6 +28,11 @@
     <ProjectReference Include="..\ClinicAssistant.Controller\ClinicAssistant.Controller.csproj" />
     <ProjectReference Include="..\ClinicAssistant.Service\ClinicAssistant.Service.csproj" />
     <ProjectReference Include="..\ClinicAssistant.Repository\ClinicAssistant.Repository.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="log4net.config" CopyToPublishDirectory="PreserveNewest" />
+    <Content Update="Assets/**" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

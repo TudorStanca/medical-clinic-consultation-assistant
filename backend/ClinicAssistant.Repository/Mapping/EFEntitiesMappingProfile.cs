@@ -38,7 +38,8 @@ public class EFEntitiesMappingProfile : Profile
                 s.DoctorId,
                 s.PatientId,
                 $"{s.Patient.FirstName} {s.Patient.LastName}",
-                s.CreatedAt));
+                s.CreatedAt,
+                s.PatientTranscriptAccess));
 
         CreateMap<ConsultationSession, SessionSummaryResponseDTO>()
             .ConstructUsing(s => new SessionSummaryResponseDTO(
@@ -71,6 +72,27 @@ public class EFEntitiesMappingProfile : Profile
                 ctx.Mapper.Map<DoctorResponseDTO>(m.Session.Doctor),
                 ctx.Mapper.Map<PatientResponseDTO>(m.Session.Patient),
                 ctx.Mapper.Map<IReadOnlyList<UploadedDocumentResponseDTO>>(m.Documents)));
+
+        CreateMap<MedicalLetter, MedicalLetterSummaryResponseDTO>()
+            .ConstructUsing(m => new MedicalLetterSummaryResponseDTO(
+                m.Id,
+                m.LetterType,
+                m.Location,
+                m.WrittenAt,
+                m.Session.DoctorId,
+                $"{m.Session.Doctor.FirstName} {m.Session.Doctor.LastName}"));
+
+        CreateMap<LetterAccessGrant, LetterAccessGrantResponseDTO>()
+            .ConstructUsing(g => new LetterAccessGrantResponseDTO(
+                g.Id,
+                g.GranteeDoctorId,
+                $"{g.GranteeDoctor.FirstName} {g.GranteeDoctor.LastName}",
+                g.SourceDoctorId,
+                $"{g.SourceDoctor.FirstName} {g.SourceDoctor.LastName}",
+                g.CreatedAt));
+
+        CreateMap<Doctor, DoctorSearchableResponseDTO>()
+            .ConstructUsing(d => new DoctorSearchableResponseDTO(d.Id, d.FirstName, d.LastName, d.Specialization));
 
         CreateMap<UploadedDocument, UploadedDocumentResponseDTO>()
             .ConstructUsing(d => new UploadedDocumentResponseDTO(
