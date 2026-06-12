@@ -12,14 +12,12 @@ const useDocumentApi = () => {
     async (
       file: File,
       patientId: string,
-      uploadedByUserId: string,
       documentType: DocumentTypeValue,
       sessionId: string | null
     ): Promise<UploadedDocumentResponseDTO> => {
       const form = new FormData();
       form.append("file", file);
       form.append("patientId", patientId);
-      form.append("uploadedByUserId", uploadedByUserId);
       form.append("documentType", String(documentType));
       if (sessionId) {
         form.append("sessionId", sessionId);

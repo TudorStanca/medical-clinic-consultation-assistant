@@ -52,8 +52,9 @@ public class ConsultationSessionController(IConsultationSessionService sessionSe
     [ProducesResponseType(422)]
     public async Task<ActionResult> CreateSession([FromBody] SessionPostDTO dto)
     {
-        _logger.Info($"Received request to create consultation session. Doctor={dto.DoctorId} Patient={dto.PatientId}");
-        var response = await _sessionService.CreateSessionAsync(dto);
+        var doctorId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        _logger.Info($"Received request to create consultation session. Doctor={doctorId} Patient={dto.PatientId}");
+        var response = await _sessionService.CreateSessionAsync(dto, doctorId);
 
         return CreatedAtAction(nameof(GetSession), new { sessionId = response.SessionId }, response);
     }

@@ -196,7 +196,7 @@ public class MedicalLetterService(
         return _mapper.Map<MedicalLetterResponseDTO>(letter);
     }
 
-    public async Task<MedicalLetterResponseDTO> UpdateLetterAsync(Guid id, MedicalLetterPutDTO dto, CancellationToken ct)
+    public async Task<MedicalLetterResponseDTO> UpdateLetterAsync(Guid id, MedicalLetterPutDTO dto, string doctorId, CancellationToken ct)
     {
         _logger.Info($"Updating medical letter id={id}.");
 
@@ -208,6 +208,11 @@ public class MedicalLetterService(
 
         var letter = await _letterRepo.GetByIdAsync(id)
             ?? throw new NotFoundException($"Medical letter {id} not found.");
+
+        if (letter.Session.DoctorId != doctorId)
+        {
+            throw new UnauthorizedException("Nu ești autorizat să editezi această scrisoare medicală.");
+        }
 
         _mapper.Map(dto, letter);
         await _letterRepo.UpdateAsync(letter);

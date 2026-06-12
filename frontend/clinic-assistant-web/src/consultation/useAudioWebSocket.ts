@@ -28,7 +28,8 @@ const useAudioWebSocket = ({ onUnexpectedDisconnect }: UseAudioWebSocketOptions 
     workletNodeRef.current = workletNode;
 
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${location.host}/ws/audio/${sessionId}`);
+    const token = localStorage.getItem("clinic.token") ?? "";
+    const ws = new WebSocket(`${proto}//${location.host}/ws/audio/${sessionId}?access_token=${token}`);
     wsRef.current = ws;
 
     await new Promise<void>((resolve, reject) => {

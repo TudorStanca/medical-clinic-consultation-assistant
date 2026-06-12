@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Security.Claims;
 using ClinicAssistant.Controller.Interfaces;
 using ClinicAssistant.Domain.Entities;
 using ClinicAssistant.Service;
@@ -20,10 +21,19 @@ public static class AudioWebSocketHandler
             return;
         }
 
+        string sessionDoctorId;
         using (var scope = scopeFactory.CreateScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<IConsultationSessionService>();
-            await service.GetSessionAsync(sessionId);
+            var session = await service.GetSessionAsync(sessionId);
+            sessionDoctorId = session.DoctorId;
+        }
+
+        var currentUserId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (currentUserId != sessionDoctorId)
+        {
+            context.Response.StatusCode = 403;
+            return;
         }
 
         using var webSocket = await context.WebSockets.AcceptWebSocketAsync();

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Threading.RateLimiting;
 using ClinicAssistant.AudioTranscribers;
 using QuestPDF.Infrastructure;
 using ClinicAssistant.Configuration;
@@ -19,6 +20,7 @@ using log4net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
@@ -165,6 +167,21 @@ public class Program
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
                 ClockSkew = TimeSpan.Zero
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    var path = context.HttpContext.Request.Path;
+                    if (!string.IsNullOrEmpty(accessToken) &&
+                        (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/ws")))
+                    {
+                        context.Token = accessToken;
+                    }
+
+                    return Task.CompletedTask;
+                }
+            };
         });
 
         // Repositories (Scoped)
@@ -224,6 +241,18 @@ public class Program
                 });
         }
 
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddFixedWindowLimiter("login", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 5;
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.QueueLimit = 0;
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            });
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        });
+
         // SignalR publisher (Singleton — stateless)
         builder.Services.AddSingleton<ITranscriptPublisher, SignalRTranscriptPublisher>();
 
@@ -262,12 +291,14 @@ public class Program
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseRateLimiter();
 
         app.MapControllers();
         app.MapHub<TranscriptionHub>("/hubs/transcription");
 
         app.Map("/ws/audio/{sessionId:guid}", async (HttpContext ctx, Guid sessionId, IServiceScopeFactory sf) =>
-            await AudioWebSocketHandler.HandleAsync(ctx, sessionId, sf));
+            await AudioWebSocketHandler.HandleAsync(ctx, sessionId, sf))
+            .RequireAuthorization(policy => policy.RequireRole(Roles.Doctor));
 
         if (app.Environment.IsDevelopment())
         {

@@ -109,10 +109,15 @@ public class UploadedDocumentService(
             d.UploadedAt, d.DocumentType.ToString(), d.UploadedByUserId));
     }
 
-    public async Task<(Stream Stream, string ContentType, string FileName)> GetFileAsync(Guid id)
+    public async Task<(Stream Stream, string ContentType, string FileName)> GetFileAsync(Guid id, string requestingUserId, bool canViewAny)
     {
         var doc = await _documentRepo.GetByIdAsync(id)
             ?? throw new NotFoundException($"Document {id} not found.");
+
+        if (!canViewAny && doc.PatientId != requestingUserId)
+        {
+            throw new UnauthorizedException("Nu ești autorizat să accesezi acest document.");
+        }
 
         if (!File.Exists(doc.FilePath))
         {
@@ -127,12 +132,17 @@ public class UploadedDocumentService(
         return (stream, contentType, doc.OriginalFileName);
     }
 
-    public async Task DeleteAsync(Guid id)
+    public async Task DeleteAsync(Guid id, string requestingUserId, bool isAdmin)
     {
         _logger.Info($"Deleting document {id}");
 
         var doc = await _documentRepo.GetByIdAsync(id)
             ?? throw new NotFoundException($"Document {id} not found.");
+
+        if (!isAdmin && doc.UploadedByUserId != requestingUserId)
+        {
+            throw new UnauthorizedException("Nu ești autorizat să ștergi acest document.");
+        }
 
         if (File.Exists(doc.FilePath))
         {

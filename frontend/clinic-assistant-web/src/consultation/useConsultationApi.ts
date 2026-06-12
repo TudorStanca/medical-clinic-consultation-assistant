@@ -17,8 +17,8 @@ const useConsultationApi = () => {
   const { axios } = useApiClient();
 
   const createSession = useCallback(
-    async (doctorId: string, patientId: string): Promise<SessionCreatedResponse> => {
-      const res = await axios.post<SessionCreatedResponse>(sessionUrl, { doctorId, patientId });
+    async (patientId: string): Promise<SessionCreatedResponse> => {
+      const res = await axios.post<SessionCreatedResponse>(sessionUrl, { patientId });
 
       return res.data;
     },

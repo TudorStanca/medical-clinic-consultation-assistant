@@ -28,11 +28,11 @@ public class UploadedDocumentController(IUploadedDocumentService documentService
     public async Task<ActionResult> UploadDocument(
         IFormFile file,
         [FromForm] string patientId,
-        [FromForm] string uploadedByUserId,
         [FromForm] DocumentType documentType,
         [FromForm] Guid? sessionId = null)
     {
         _logger.Info($"Received upload request for patient {patientId}");
+        var uploadedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var response = await _documentService.UploadAsync(file, patientId, uploadedByUserId, documentType, sessionId);
 
         return CreatedAtAction(nameof(GetByPatient), new { patientId = response.PatientId }, response);
@@ -63,11 +63,14 @@ public class UploadedDocumentController(IUploadedDocumentService documentService
     [Authorize]
     [ProducesResponseType(200)]
     [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(404)]
     public async Task<ActionResult> GetFile(Guid id)
     {
         _logger.Info($"Received request to view file for document {id}");
-        var (stream, contentType, fileName) = await _documentService.GetFileAsync(id);
+        var requestingUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var canViewAny = User.IsInRole(Roles.Admin) || User.IsInRole(Roles.Doctor);
+        var (stream, contentType, fileName) = await _documentService.GetFileAsync(id, requestingUserId, canViewAny);
 
         return File(stream, contentType, fileName);
     }
@@ -81,7 +84,9 @@ public class UploadedDocumentController(IUploadedDocumentService documentService
     public async Task<ActionResult> DeleteDocument(Guid id)
     {
         _logger.Info($"Received request to delete document {id}");
-        await _documentService.DeleteAsync(id);
+        var requestingUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var isAdmin = User.IsInRole(Roles.Admin);
+        await _documentService.DeleteAsync(id, requestingUserId, isAdmin);
 
         return NoContent();
     }

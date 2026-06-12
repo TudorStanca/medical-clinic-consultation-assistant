@@ -18,6 +18,21 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
     private readonly ILetterAttachmentService _attachmentService = attachmentService;
     private readonly ILetterAccessGrantService _grantService = grantService;
 
+    private async Task<bool> CanAccessLetterAsync(MedicalLetterResponseDTO letter, string currentUserId)
+    {
+        if (User.IsInRole(Roles.Patient))
+        {
+            return letter.Patient.Id == currentUserId;
+        }
+
+        if (User.IsInRole(Roles.Doctor) && letter.Doctor.Id != currentUserId)
+        {
+            return await _grantService.HasGrantAsync(letter.Patient.Id, currentUserId, letter.Doctor.Id);
+        }
+
+        return true;
+    }
+
     [HttpPost]
     [Authorize(Roles = Roles.Doctor)]
     [ProducesResponseType(typeof(MedicalLetterResponseDTO), 201)]
@@ -59,18 +74,9 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
         var letter = await _letterService.GetByIdAsync(id);
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        if (User.IsInRole(Roles.Patient) && letter.Patient.Id != currentUserId)
+        if (!await CanAccessLetterAsync(letter, currentUserId))
         {
             return Forbid();
-        }
-
-        if (User.IsInRole(Roles.Doctor) && letter.Doctor.Id != currentUserId)
-        {
-            var hasGrant = await _grantService.HasGrantAsync(letter.Patient.Id, currentUserId, letter.Doctor.Id);
-            if (!hasGrant)
-            {
-                return Forbid();
-            }
         }
 
         return Ok(letter);
@@ -88,18 +94,9 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
         var letter = await _letterService.GetBySessionIdAsync(sessionId);
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        if (User.IsInRole(Roles.Patient) && letter.Patient.Id != currentUserId)
+        if (!await CanAccessLetterAsync(letter, currentUserId))
         {
             return Forbid();
-        }
-
-        if (User.IsInRole(Roles.Doctor) && letter.Doctor.Id != currentUserId)
-        {
-            var hasGrant = await _grantService.HasGrantAsync(letter.Patient.Id, currentUserId, letter.Doctor.Id);
-            if (!hasGrant)
-            {
-                return Forbid();
-            }
         }
 
         return Ok(letter);
@@ -117,18 +114,9 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
         var letter = await _letterService.GetByIdAsync(id);
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        if (User.IsInRole(Roles.Patient) && letter.Patient.Id != currentUserId)
+        if (!await CanAccessLetterAsync(letter, currentUserId))
         {
             return Forbid();
-        }
-
-        if (User.IsInRole(Roles.Doctor) && letter.Doctor.Id != currentUserId)
-        {
-            var hasGrant = await _grantService.HasGrantAsync(letter.Patient.Id, currentUserId, letter.Doctor.Id);
-            if (!hasGrant)
-            {
-                return Forbid();
-            }
         }
 
         var (bytes, fileName) = await _letterService.GetPdfAsync(id);
@@ -157,10 +145,19 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
     [Authorize]
     [ProducesResponseType(typeof(IEnumerable<LetterAttachmentResponseDTO>), 200)]
     [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(404)]
     public async Task<ActionResult> GetAttachments(Guid id)
     {
         _logger.Info($"Received request for attachments of letter id={id}.");
+        var letter = await _letterService.GetByIdAsync(id);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        if (!await CanAccessLetterAsync(letter, currentUserId))
+        {
+            return Forbid();
+        }
+
         var attachments = await _attachmentService.GetByLetterIdAsync(id);
 
         return Ok(attachments);
@@ -170,11 +167,20 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
     [Authorize]
     [ProducesResponseType(200)]
     [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
     [ProducesResponseType(404)]
     public async Task<ActionResult> GetAttachmentImage(Guid id, Guid attachmentId)
     {
         _logger.Info($"Received request to serve attachment image {attachmentId}.");
-        var (data, contentType, fileName) = await _attachmentService.GetImageAsync(attachmentId);
+        var letter = await _letterService.GetByIdAsync(id);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        if (!await CanAccessLetterAsync(letter, currentUserId))
+        {
+            return Forbid();
+        }
+
+        var (data, contentType, fileName) = await _attachmentService.GetImageAsync(id, attachmentId);
 
         return File(data, contentType, fileName);
     }
@@ -204,7 +210,8 @@ public class MedicalLetterController(IMedicalLetterService letterService, ILette
     public async Task<ActionResult> UpdateLetter(Guid id, [FromBody] MedicalLetterPutDTO dto, CancellationToken ct)
     {
         _logger.Info($"Received request to update medical letter id={id}.");
-        var letter = await _letterService.UpdateLetterAsync(id, dto, ct);
+        var doctorId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var letter = await _letterService.UpdateLetterAsync(id, dto, doctorId, ct);
 
         return Ok(letter);
     }

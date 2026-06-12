@@ -9,18 +9,19 @@ COPY ClinicAssistant.Service/ClinicAssistant.Service.csproj ClinicAssistant.Serv
 COPY ClinicAssistant.Repository/ClinicAssistant.Repository.csproj ClinicAssistant.Repository/
 COPY ClinicAssistant.Domain/ClinicAssistant.Domain.csproj ClinicAssistant.Domain/
 
-RUN dotnet restore ClinicAssistant/ClinicAssistant.sln
+RUN dotnet restore ClinicAssistant/ClinicAssistant.sln -r linux-x64
 
 COPY . .
-RUN dotnet publish ClinicAssistant/ClinicAssistant.csproj -c Release -o /publish --no-restore
+RUN dotnet publish ClinicAssistant/ClinicAssistant.csproj -c Release -r linux-x64 --self-contained true -o /publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 WORKDIR /app
 COPY --from=build /publish .
 
-# libgomp1 is required by Whisper.net native libraries on Linux
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 libicu70 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 5056
 ENV ASPNETCORE_URLS=http://+:5056
-ENTRYPOINT ["dotnet", "ClinicAssistant.dll"]
+ENTRYPOINT ["./ClinicAssistant"]

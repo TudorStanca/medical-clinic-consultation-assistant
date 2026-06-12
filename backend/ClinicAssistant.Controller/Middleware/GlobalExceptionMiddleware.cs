@@ -55,7 +55,7 @@ public class GlobalExceptionMiddleware
 
             default:
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                response = new ExceptionResponse(HttpStatusCode.InternalServerError, "Internal server error. Please retry later. " + exception.Message);
+                response = new ExceptionResponse(HttpStatusCode.InternalServerError, "Internal server error. Please retry later.");
                 break;
         }
 

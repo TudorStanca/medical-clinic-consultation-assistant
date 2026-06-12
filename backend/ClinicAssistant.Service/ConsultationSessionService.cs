@@ -30,9 +30,9 @@ public class ConsultationSessionService(
     private readonly IValidator<SessionPostDTO> _validator = validator;
     private readonly FileStorageSettings _fileStorage = fileStorageOptions.Value;
 
-    public async Task<SessionCreatedResponseDTO> CreateSessionAsync(SessionPostDTO dto)
+    public async Task<SessionCreatedResponseDTO> CreateSessionAsync(SessionPostDTO dto, string doctorId)
     {
-        _logger.Info($"Creating consultation session for Doctor={dto.DoctorId} Patient={dto.PatientId}");
+        _logger.Info($"Creating consultation session for Doctor={doctorId} Patient={dto.PatientId}");
 
         var result = await _validator.ValidateAsync(dto);
         if (!result.IsValid)
@@ -40,14 +40,14 @@ public class ConsultationSessionService(
             throw new EntityValidationException(result.Errors.Select(e => e.ErrorMessage));
         }
 
-        if (await _sessionRepo.HasActiveSessionAsync(dto.DoctorId))
+        if (await _sessionRepo.HasActiveSessionAsync(doctorId))
         {
             throw new ConflictException("Aveți deja o consultație activă. Finalizați-o înainte de a începe alta.");
         }
 
         var session = new ConsultationSession
         {
-            DoctorId = dto.DoctorId,
+            DoctorId = doctorId,
             PatientId = dto.PatientId
         };
 

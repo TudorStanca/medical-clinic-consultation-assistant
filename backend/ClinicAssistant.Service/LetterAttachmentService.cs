@@ -89,10 +89,15 @@ public class LetterAttachmentService(
         return attachments.Select(ToDto);
     }
 
-    public async Task<(byte[] Data, string ContentType, string FileName)> GetImageAsync(Guid attachmentId)
+    public async Task<(byte[] Data, string ContentType, string FileName)> GetImageAsync(Guid letterId, Guid attachmentId)
     {
         var attachment = await _attachmentRepo.GetByIdAsync(attachmentId)
             ?? throw new NotFoundException($"Attachment {attachmentId} not found.");
+
+        if (attachment.MedicalLetterId != letterId)
+        {
+            throw new NotFoundException($"Attachment {attachmentId} not found.");
+        }
 
         return (attachment.Data, attachment.ContentType, attachment.OriginalFileName);
     }
