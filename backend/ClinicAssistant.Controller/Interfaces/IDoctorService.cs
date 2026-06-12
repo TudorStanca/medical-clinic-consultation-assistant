@@ -1,0 +1,12 @@
+using ClinicAssistant.Domain.DTOs;
+
+namespace ClinicAssistant.Controller.Interfaces;
+
+public interface IDoctorService
+{
+    Task<DoctorResponseDTO> CreateDoctorAsync(DoctorPostDTO dto);
+    Task<DoctorResponseDTO> GetByIdAsync(string id);
+    Task<PagedResponseDTO<DoctorResponseDTO>> GetPagedAsync(PagedQueryDTO query);
+    Task<DoctorStatsResponseDTO> GetStatsAsync(string doctorId);
+    Task<IEnumerable<DoctorSearchableResponseDTO>> GetSearchableAsync(string? search);
+}

@@ -1,0 +1,33 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=YOUR_HOST;Port=YOUR_PORT;Database=YOUR_DATABASE;Username=YOUR_USER;Password=YOUR_PASSWORD"
+  },
+  "JwtSettings": {
+    "Secret": "REPLACE_WITH_RANDOM_256_BIT_SECRET_AT_LEAST_32_CHARS",
+    "Issuer": "ClinicAssistant",
+    "Audience": "ClinicAssistantClient",
+    "ExpiryMinutes": 60
+  },
+  "AdminSettings": {
+    "Email": "EMAIL_ADDRESS",
+    "Password": "REPLACE_WITH_STRONG_PASSWORD",
+    "FirstName": "FIRST_NAME",
+    "LastName": "LAST_NAME"
+  },
+  "LlmSettings": {
+    "ApiKey": "REPLACE_WITH_ANTHROPIC_API_KEY",
+    "ModelId": "claude-opus-4-6",
+    "MaxTokens": 2048,
+    "UseStub": true,
+    "FewShotPath": "Assets/LlmFewShot",
+    "SystemPromptPath": "Assets/system-prompt.txt",
+    "ApiUrl": "https://api.anthropic.com/v1/messages",
+    "AnthropicVersion": "2023-06-01"
+  }
+}

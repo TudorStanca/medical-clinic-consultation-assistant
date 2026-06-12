@@ -1,0 +1,220 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import {
+  Box,
+  CircularProgress,
+  InputAdornment,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Typography,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
+import { MS_LIGHT, MS_FONTS } from "@/theme/tokens";
+import type { PagedQuery, PagedResponse } from "@/shared/types/api";
+
+const T = MS_LIGHT;
+
+export interface Column<T> {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  render: (row: T) => React.ReactNode;
+}
+
+interface Props<T> {
+  columns: Column<T>[];
+  fetch: (query: PagedQuery) => Promise<PagedResponse<T>>;
+  onRowClick?: (row: T) => void;
+  searchPlaceholder?: string;
+  defaultSortBy?: string;
+  defaultSortDir?: "asc" | "desc";
+  rowKey: (row: T) => string;
+  extraFilters?: ReactNode;
+}
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
+
+function PagedTable<T>({
+  columns,
+  fetch,
+  onRowClick,
+  searchPlaceholder = "Caută...",
+  defaultSortBy,
+  defaultSortDir = "asc",
+  rowKey,
+  extraFilters,
+}: Props<T>) {
+  const [rows, setRows] = useState<T[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState(defaultSortBy ?? "");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSortDir);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const load = useCallback(
+    async (q: PagedQuery) => {
+      setLoading(true);
+      setError("");
+      try {
+        const result = await fetch(q);
+        setRows(result.items);
+        setTotal(result.totalCount);
+      } catch {
+        setError("Eroare la încărcarea datelor.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetch]
+  );
+
+  useEffect(() => {
+    load({ page: page + 1, pageSize, search, sortBy: sortBy || undefined, sortDir });
+  }, [page, pageSize, sortBy, sortDir, load]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      setPage(0);
+      load({ page: 1, pageSize, search: value, sortBy: sortBy || undefined, sortDir });
+    }, 300);
+  };
+
+  const handleSort = (key: string) => {
+    const isActive = sortBy === key;
+    const newDir = isActive && sortDir === "asc" ? "desc" : "asc";
+    setSortBy(key);
+    setSortDir(newDir);
+    setPage(0);
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: "16px", gap: "12px", flexWrap: "wrap" }}>
+        {extraFilters && <Box sx={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>{extraFilters}</Box>}
+        <TextField
+          size="small"
+          placeholder={searchPlaceholder}
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          sx={{ width: 260 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" sx={{ color: T.textDim }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      </Box>
+      {error && (
+        <Typography color="error" variant="body2" mb={1}>
+          {error}
+        </Typography>
+      )}
+      <TableContainer sx={{ borderRadius: "10px", border: `1px solid ${T.border}`, overflow: "hidden" }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              {columns.map((col) => (
+                <TableCell key={col.key}>
+                  {col.sortable ? (
+                    <TableSortLabel
+                      active={sortBy === col.key}
+                      direction={sortBy === col.key ? sortDir : "asc"}
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.label}
+                    </TableSortLabel>
+                  ) : (
+                    col.label
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} sx={{ border: "none", py: "48px", textAlign: "center" }}>
+                  <CircularProgress size={28} sx={{ color: T.accent }} />
+                </TableCell>
+              </TableRow>
+            ) : rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} sx={{ border: "none", py: "48px" }}>
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                    <SearchOffIcon sx={{ fontSize: 44, color: T.border }} />
+                    <Typography
+                      sx={{
+                        color: T.textMuted,
+                        fontSize: "0.875rem",
+                        fontFamily: MS_FONTS.sans,
+                      }}
+                    >
+                      {search ? `Niciun rezultat pentru „${search}"` : "Nu există înregistrări."}
+                    </Typography>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((row) => (
+                <TableRow
+                  key={rowKey(row)}
+                  hover={!!onRowClick}
+                  onClick={() => onRowClick?.(row)}
+                  sx={{ cursor: onRowClick ? "pointer" : "default" }}
+                >
+                  {columns.map((col) => (
+                    <TableCell key={col.key}>{col.render(row)}</TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        component="div"
+        count={total}
+        page={page}
+        onPageChange={(_, newPage) => setPage(newPage)}
+        rowsPerPage={pageSize}
+        onRowsPerPageChange={(e) => {
+          setPageSize(parseInt(e.target.value, 10));
+          setPage(0);
+        }}
+        rowsPerPageOptions={PAGE_SIZE_OPTIONS}
+        labelRowsPerPage="Rânduri pe pagină:"
+        labelDisplayedRows={({ from, to, count }) => `${from}–${to} din ${count}`}
+        sx={{
+          "& .MuiTablePagination-toolbar": { px: 0 },
+          "& .MuiTablePagination-displayedRows, & .MuiTablePagination-selectLabel": {
+            fontSize: "0.8125rem",
+            color: T.textMuted,
+          },
+        }}
+      />
+    </Box>
+  );
+}
+
+export default PagedTable;

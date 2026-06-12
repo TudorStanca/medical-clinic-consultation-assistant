@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+ClinicAssistant/App_Data/
+ClinicAssistant/Logs/
+ClinicAssistant/appsettings.Development.json
+ClinicAssistant/appsettings.Production.json
+ClinicAssistant/Properties/launchSettings.json
