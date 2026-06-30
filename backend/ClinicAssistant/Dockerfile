@@ -14,12 +14,12 @@ RUN dotnet restore ClinicAssistant/ClinicAssistant.sln -r linux-x64
 COPY . .
 RUN dotnet publish ClinicAssistant/ClinicAssistant.csproj -c Release -r linux-x64 --self-contained true -o /publish
 
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+FROM nvidia/cuda:13.0.0-cudnn-runtime-ubuntu24.04
 WORKDIR /app
 COPY --from=build /publish .
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 libicu70 ca-certificates \
+    libgomp1 libicu74 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 5056
