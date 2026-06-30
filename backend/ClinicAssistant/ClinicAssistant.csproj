@@ -32,7 +32,8 @@
 
   <ItemGroup>
     <Content Update="log4net.config" CopyToPublishDirectory="PreserveNewest" />
-    <Content Update="Assets/**" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets/system-prompt.txt" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets/LlmFewShot/**/*" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
